@@ -23,23 +23,23 @@ class CountSpinbox(QSpinBox):
         self.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
         self.setFixedWidth(120)
         self.setFixedHeight(30)
-        # Do not focus on this widget on load
-        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        # self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def enterEvent(self, event: QEnterEvent) -> None:
         self.setFocus()
-        # If readonly, set cursor to normal
-        if self.isReadOnly():
+        # If readonly or disabled, set cursor to normal
+        if self.isReadOnly() or not self.isEnabled():
             self.setCursor(Qt.CursorShape.ArrowCursor)
-        if not self.isReadOnly():
+        # If enabled and not readonly, select all text
+        if not self.isReadOnly() and self.isEnabled():
             self.lineEdit().selectAll()
         super().enterEvent(event)
 
     def leaveEvent(self, event: QEvent) -> None:
         self.clearFocus()
-        # Reset mouse cursor
+        # Always reset mouse cursor when leaving
         self.setCursor(Qt.CursorShape.ArrowCursor)
-        if not self.isReadOnly():
-            # clear the highlight
+        # If enabled and not readonly, deselect text
+        if not self.isReadOnly() and self.isEnabled():
             self.lineEdit().deselect()
         super().leaveEvent(event)

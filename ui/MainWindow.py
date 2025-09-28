@@ -5,8 +5,8 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QGroupBox,
     QLabel,
-    # QDialog,
     # QDialogButtonBox,
+    QPushButton,
     QFileDialog,
     QGridLayout,
 )
@@ -29,6 +29,7 @@ from PyQt6.QtCharts import (
 
 from .CountSpinbox import CountSpinbox
 from .ErrorDialog import ErrorDialog
+from .SimulationDialog import SimulationDialog
 from .utils import (
     set_titlebar_darkmode,
     left_aligned_layout,
@@ -188,13 +189,66 @@ class MainWindow(QMainWindow):
         self.chart = QChart()
 
         self.chart_view = QChartView(self.chart)
-        self.chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self.chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         self.chart_view.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.chart_view)
 
-        self.chart_view.hide()
+        # from 70 to 90
+        self.pity_breakpoints = list(range(70, 91, 5))
+        self.pity_count_per_breakpoint = [0 for _ in self.pity_breakpoints]
+
+        chart = QChart()
+        chart.setTheme(QChart.ChartTheme.ChartThemeDark)
+        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        # chart.setTitle("Pity Chart")
+
+        self.bar_set = QBarSet("Pity Count")
+        self.bar_set.append(self.pity_count_per_breakpoint)
+
+        bar_series = QBarSeries()
+        bar_series.append(self.bar_set)
+
+        chart.addSeries(bar_series)
+
+        axis_x = QBarCategoryAxis()
+        axis_x.append([str(i) for i in self.pity_breakpoints])
+        axis_x.setTitleText("Pity Breakpoints")
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        bar_series.attachAxis(axis_x)
+
+        self.axis_y = QValueAxis()
+        max_int_ceil = int(max(self.pity_count_per_breakpoint)) + 2
+        min_int_floor = max(int(min(self.pity_count_per_breakpoint)) - 1, 0)
+        self.axis_y.setRange(min_int_floor, max_int_ceil)
+        self.axis_y.setTickCount(max_int_ceil - min_int_floor + 1)
+        self.axis_y.setTitleText("Pity Count")
+
+        chart.addAxis(self.axis_y, Qt.AlignmentFlag.AlignLeft)
+        bar_series.attachAxis(self.axis_y)
+
+        # Hide legend
+        chart.legend().setVisible(False)
+        chart.setPlotArea(QRectF(60, 10, 300, 190))
+
+        bar_series.setLabelsVisible(True)
+        bar_series.setLabelsFormat("@value")
+        bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
+
+        self.chart_view.setChart(chart)
+        self.chart_view.show()
 
         layout.addStretch(1)
+
+        self.simulate_button = QPushButton(TEXT.SIMULATE)
+        self.simulate_button.clicked.connect(self.simulate)
+
+        layout.addWidget(self.simulate_button)
+
+        # Set tab order for spinboxes
+
+        self.setTabOrder(self.primogems, self.fates)
+        self.setTabOrder(self.fates, self.starglitter)
+        self.setTabOrder(self.starglitter, self.crystal)
 
     def validate_data(self, raw_data: dict) -> dict:
         """Validate the data structure."""
@@ -334,52 +388,26 @@ class MainWindow(QMainWindow):
             fates_from_starglitter +
             fates_from_inventory +
             fates_from_crystal)
-        self.total_fates.setText(str(total_fates))
+        self.total_fates.setText(f"<b>{total_fates}</b>")
 
         # Generate the pity chart
+        self.pity_count_per_breakpoint = [round(total_fates / i, 2) for i in self.pity_breakpoints]
 
-        # from 70 to 90
-        pity_breakpoints = list(range(70, 91, 5))
-        pity_count_per_breakpoint = [round(total_fates/i, 2) for i in pity_breakpoints]
+        for i, value in enumerate(self.pity_count_per_breakpoint):
+            self.bar_set.replace(i, value)
 
-        chart = QChart()
-        chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        # chart.setTitle("Pity Chart")
-
-        bar_set = QBarSet("Pity Count")
-        bar_set.append(pity_count_per_breakpoint)
-
-        bar_series = QBarSeries()
-        bar_series.append(bar_set)
-
-        chart.addSeries(bar_series)
-
-        axis_x = QBarCategoryAxis()
-        axis_x.append([str(i) for i in pity_breakpoints])
-        axis_x.setTitleText("Pity Breakpoints")
-        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
-        bar_series.attachAxis(axis_x)
-
-        axis_y = QValueAxis()
-        max_int_ceil = int(max(pity_count_per_breakpoint)) + 2
-        min_int_floor = max(int(min(pity_count_per_breakpoint)) - 1, 0)
-        axis_y.setRange(min_int_floor, max_int_ceil)
-        axis_y.setTickCount(max_int_ceil - min_int_floor + 1)
-        axis_y.setTitleText("Pity Count")
-
-        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        bar_series.attachAxis(axis_y)
-
-        # Hide legend
-        chart.legend().setVisible(False)
-        chart.setPlotArea(QRectF(60, 10, 300, 190))
-
-        bar_series.setLabelsVisible(True)
-        bar_series.setLabelsFormat("@value")
-        bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.chart_view.setChart(chart)
-        self.chart_view.show()
+        max_int_ceil = int(max(self.pity_count_per_breakpoint)) + 2
+        min_int_floor = max(int(min(self.pity_count_per_breakpoint)) - 1, 0)
+        self.axis_y.setRange(min_int_floor, max_int_ceil)
+        self.axis_y.setTickCount(max_int_ceil - min_int_floor + 1)
 
         self.save_to_last_save()
+
+    def simulate(self):
+        """Simulate pulls based on the available fates."""
+
+        pulls = self.total_fates.text()
+        pulls = int(pulls.replace("<b>", "").replace("</b>", ""))
+        dialog = SimulationDialog(self, pulls)
+
+        dialog.exec()

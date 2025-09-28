@@ -10,3 +10,5 @@ class TEXT:
     FATES = 'Intertwined Fates'
     STARGLITTER = 'Masterless Starglitter'
     CRYSTAL = 'Genesis Crystals'
+
+    SIMULATE = 'Simulate Pulls'
