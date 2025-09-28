@@ -7,6 +7,8 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QLabel,
     QProgressBar,
+    QTabWidget,
+    QWidget,
 )
 from PyQt6.QtGui import (
     QIcon,
@@ -118,16 +120,9 @@ class SimulationDialog(QDialog):
         self.init_UI(pulls)
 
     def init_UI(self, pulls):
-        # self.pulls = 600
-        # self.sim_length = 100000
-        # self.seed = 0
-        # self.guaranteed = False
-        # self.pity = 0
-        # self.cr = 0
+        layout = QHBoxLayout()
 
-        layout = QVBoxLayout()
-
-        top_section_layout = QHBoxLayout()
+        top_section_layout = QVBoxLayout()
 
         param_groupbox = QGroupBox()
         param_layout = QGridLayout()
@@ -190,11 +185,18 @@ class SimulationDialog(QDialog):
         sim_settings_layout.addWidget(QLabel("Animation Interval"), 2, 0)
         sim_settings_layout.addWidget(self.animation_interval, 2, 1)
 
+        sim_settings_groupbox.setLayout(sim_settings_layout)
+        top_section_layout.addWidget(sim_settings_groupbox)
+
+        layout.addLayout(top_section_layout)
+
+        button_box = QVBoxLayout()
+
         # Progress Bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.progress_bar.setFormat("%v / %m  (%p%)")
-        sim_settings_layout.addWidget(self.progress_bar, 3, 0, 1, 2)  # Span two columns
+        button_box.addWidget(self.progress_bar)
 
         # Link progress bar range to simulation length
         self.sim_length.valueChanged.connect(
@@ -202,61 +204,71 @@ class SimulationDialog(QDialog):
         )
         self.progress_bar.setRange(0, self.sim_length.value())
 
-        sim_settings_groupbox.setLayout(sim_settings_layout)
-        top_section_layout.addWidget(sim_settings_groupbox)
-
-        layout.addLayout(top_section_layout)
-
-        button_hbox = QHBoxLayout()
-
         self.run_button = QPushButton("Run Simulation")
         self.run_button.setFixedHeight(40)
         self.run_button.clicked.connect(self.start_simulation_thread)
-        button_hbox.addWidget(self.run_button)
+        button_box.addWidget(self.run_button)
 
         self.stop_button = QPushButton("Stop Simulation")
         self.stop_button.setFixedHeight(40)
         self.stop_button.clicked.connect(self.stop_simulation_thread)
         self.stop_button.setEnabled(False)
-        button_hbox.addWidget(self.stop_button)
+        button_box.addWidget(self.stop_button)
 
         self.reset_button = QPushButton("Reset Simulation")
         self.reset_button.setFixedHeight(40)
         self.reset_button.clicked.connect(self.reset_simulation)
-        button_hbox.addWidget(self.reset_button)
+        button_box.addWidget(self.reset_button)
 
-        layout.addLayout(button_hbox)
+        top_section_layout.addLayout(button_box)
+        top_section_layout.addStretch(1)
+
+        # Create tab widget
+        self.tab_widget = QTabWidget()
+
+        # Create tabs
+        exact_tab = QWidget()
+        at_most_tab = QWidget()
+        at_least_tab = QWidget()
+
+        # Add tabs to tab widget
+        self.tab_widget.addTab(exact_tab, "Exact")
+        self.tab_widget.addTab(at_most_tab, "At Most")
+        self.tab_widget.addTab(at_least_tab, "At Least")
+
+        # Set up "Exact" tab with charts
+        exact_layout = QVBoxLayout()
 
         chart_height = 150
         # Featured Character Chart
 
-        self.featured_chart_view = QChartView()
-        self.featured_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.featured_chart_view.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.featured_chart_view)
+        self.exact_featured_chart_view = QChartView()
+        self.exact_featured_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        self.exact_featured_chart_view.setContentsMargins(0, 0, 0, 0)
+        exact_layout.addWidget(self.exact_featured_chart_view)
 
-        self.featured_chart = QChart()
-        self.featured_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.featured_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.featured_chart.setAnimationDuration(100)
-        self.featured_chart.legend().setVisible(False)
-        self.featured_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.exact_featured_chart = QChart()
+        self.exact_featured_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
+        self.exact_featured_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        self.exact_featured_chart.setAnimationDuration(100)
+        self.exact_featured_chart.legend().setVisible(False)
+        self.exact_featured_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
 
-        self.featured_bar_set = QBarSet("Featured 5 Star")
+        self.exact_featured_bar_set = QBarSet("Featured 5 Star")
 
-        featured_bar_series = QBarSeries()
-        featured_bar_series.append(self.featured_bar_set)
-        featured_bar_series.setLabelsVisible(True)
-        featured_bar_series.setLabelsFormat("@value")
-        featured_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
+        exact_featured_bar_series = QBarSeries()
+        exact_featured_bar_series.append(self.exact_featured_bar_set)
+        exact_featured_bar_series.setLabelsVisible(True)
+        exact_featured_bar_series.setLabelsFormat("@value")
+        exact_featured_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
 
-        self.featured_chart.addSeries(featured_bar_series)
+        self.exact_featured_chart.addSeries(exact_featured_bar_series)
 
-        self.featured_axis_x = QBarCategoryAxis()
-        self.featured_axis_x.append(["0"])
-        self.featured_axis_x.setTitleText("Number of Featured 5 Stars")
-        self.featured_chart.addAxis(self.featured_axis_x, Qt.AlignmentFlag.AlignBottom)
-        featured_bar_series.attachAxis(self.featured_axis_x)
+        self.exact_featured_axis_x = QBarCategoryAxis()
+        self.exact_featured_axis_x.append(["0"])
+        self.exact_featured_axis_x.setTitleText("Number of Featured 5 Stars")
+        self.exact_featured_chart.addAxis(self.exact_featured_axis_x, Qt.AlignmentFlag.AlignBottom)
+        exact_featured_bar_series.attachAxis(self.exact_featured_axis_x)
 
         axis_y = QValueAxis()
         max_int_ceil = 100
@@ -264,42 +276,42 @@ class SimulationDialog(QDialog):
         axis_y.setRange(min_int_floor, max_int_ceil)
         axis_y.setTitleText("Probability (%)")
 
-        self.featured_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        featured_bar_series.attachAxis(axis_y)
+        self.exact_featured_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        exact_featured_bar_series.attachAxis(axis_y)
 
-        self.featured_chart_view.setChart(self.featured_chart)
-        self.featured_chart_view.show()
+        self.exact_featured_chart_view.setChart(self.exact_featured_chart)
+        self.exact_featured_chart_view.show()
 
         # Standard Character Chart
 
-        self.standard_chart_view = QChartView()
-        self.standard_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.standard_chart_view.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.standard_chart_view)
+        self.exact_standard_chart_view = QChartView()
+        self.exact_standard_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        self.exact_standard_chart_view.setContentsMargins(0, 0, 0, 0)
+        exact_layout.addWidget(self.exact_standard_chart_view)
 
-        self.standard_chart = QChart()
-        self.standard_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.standard_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.standard_chart.setAnimationDuration(100)
-        self.standard_chart.legend().setVisible(False)
-        self.standard_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.exact_standard_chart = QChart()
+        self.exact_standard_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
+        self.exact_standard_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        self.exact_standard_chart.setAnimationDuration(100)
+        self.exact_standard_chart.legend().setVisible(False)
+        self.exact_standard_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
 
-        self.standard_bar_set = QBarSet("Standard 5 Star")
-        self.standard_bar_set.append(list(self.standard_rolls.values()))
+        self.exact_standard_bar_set = QBarSet("Standard 5 Star")
+        self.exact_standard_bar_set.append(list(self.standard_rolls.values()))
 
-        standard_bar_series = QBarSeries()
-        standard_bar_series.append(self.standard_bar_set)
-        standard_bar_series.setLabelsVisible(True)
-        standard_bar_series.setLabelsFormat("@value")
-        standard_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
+        exact_standard_bar_series = QBarSeries()
+        exact_standard_bar_series.append(self.exact_standard_bar_set)
+        exact_standard_bar_series.setLabelsVisible(True)
+        exact_standard_bar_series.setLabelsFormat("@value")
+        exact_standard_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
 
-        self.standard_chart.addSeries(standard_bar_series)
+        self.exact_standard_chart.addSeries(exact_standard_bar_series)
 
-        self.standard_axis_x = QBarCategoryAxis()
-        self.standard_axis_x.append(["0"])
-        self.standard_axis_x.setTitleText("Number of Standard 5 Stars")
-        self.standard_chart.addAxis(self.standard_axis_x, Qt.AlignmentFlag.AlignBottom)
-        standard_bar_series.attachAxis(self.standard_axis_x)
+        self.exact_standard_axis_x = QBarCategoryAxis()
+        self.exact_standard_axis_x.append(["0"])
+        self.exact_standard_axis_x.setTitleText("Number of Standard 5 Stars")
+        self.exact_standard_chart.addAxis(self.exact_standard_axis_x, Qt.AlignmentFlag.AlignBottom)
+        exact_standard_bar_series.attachAxis(self.exact_standard_axis_x)
 
         axis_y = QValueAxis()
         max_int_ceil = 100
@@ -307,41 +319,41 @@ class SimulationDialog(QDialog):
         axis_y.setRange(min_int_floor, max_int_ceil)
         axis_y.setTitleText("Probability (%)")
 
-        self.standard_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        standard_bar_series.attachAxis(axis_y)
+        self.exact_standard_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        exact_standard_bar_series.attachAxis(axis_y)
 
-        self.standard_chart_view.setChart(self.standard_chart)
-        self.standard_chart_view.show()
+        self.exact_standard_chart_view.setChart(self.exact_standard_chart)
+        self.exact_standard_chart_view.show()
 
         # Combined Character Chart
 
-        self.combined_chart_view = QChartView()
-        self.combined_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.combined_chart_view.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.combined_chart_view)
+        self.exact_combined_chart_view = QChartView()
+        self.exact_combined_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        self.exact_combined_chart_view.setContentsMargins(0, 0, 0, 0)
+        exact_layout.addWidget(self.exact_combined_chart_view)
 
-        self.combined_chart = QChart()
-        self.combined_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.combined_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.combined_chart.setAnimationDuration(100)
-        self.combined_chart.legend().setVisible(False)
-        self.combined_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.exact_combined_chart = QChart()
+        self.exact_combined_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
+        self.exact_combined_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        self.exact_combined_chart.setAnimationDuration(100)
+        self.exact_combined_chart.legend().setVisible(False)
+        self.exact_combined_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
 
-        self.combined_bar_set = QBarSet("Total 5 Star")
+        self.exact_combined_bar_set = QBarSet("Total 5 Star")
 
-        combined_bar_series = QBarSeries()
-        combined_bar_series.append(self.combined_bar_set)
-        combined_bar_series.setLabelsVisible(True)
-        combined_bar_series.setLabelsFormat("@value")
-        combined_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
+        exact_combined_bar_series = QBarSeries()
+        exact_combined_bar_series.append(self.exact_combined_bar_set)
+        exact_combined_bar_series.setLabelsVisible(True)
+        exact_combined_bar_series.setLabelsFormat("@value")
+        exact_combined_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
 
-        self.combined_chart.addSeries(combined_bar_series)
+        self.exact_combined_chart.addSeries(exact_combined_bar_series)
 
-        self.combined_axis_x = QBarCategoryAxis()
-        self.combined_axis_x.append(["0"])
-        self.combined_axis_x.setTitleText("Total Number of 5 Stars")
-        self.combined_chart.addAxis(self.combined_axis_x, Qt.AlignmentFlag.AlignBottom)
-        combined_bar_series.attachAxis(self.combined_axis_x)
+        self.exact_combined_axis_x = QBarCategoryAxis()
+        self.exact_combined_axis_x.append(["0"])
+        self.exact_combined_axis_x.setTitleText("Total Number of 5 Stars")
+        self.exact_combined_chart.addAxis(self.exact_combined_axis_x, Qt.AlignmentFlag.AlignBottom)
+        exact_combined_bar_series.attachAxis(self.exact_combined_axis_x)
 
         axis_y = QValueAxis()
         max_int_ceil = 100
@@ -349,14 +361,23 @@ class SimulationDialog(QDialog):
         axis_y.setRange(min_int_floor, max_int_ceil)
         axis_y.setTitleText("Probability (%)")
 
-        self.combined_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        combined_bar_series.attachAxis(axis_y)
+        self.exact_combined_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        exact_combined_bar_series.attachAxis(axis_y)
 
-        self.combined_chart_view.setChart(self.combined_chart)
-        self.combined_chart_view.show()
+        self.exact_combined_chart_view.setChart(self.exact_combined_chart)
+        self.exact_combined_chart_view.show()
+
+        exact_layout.addStretch(1)
+        exact_tab.setLayout(exact_layout)
+
+        # Add tab widget to main layout
+        layout.addWidget(self.tab_widget)
 
         layout.addStretch(1)
         self.setLayout(layout)
+
+        # Set default tab to "Exact"
+        self.tab_widget.setCurrentIndex(0)
 
     def start_simulation_thread(self):
         # Get the parameters
@@ -368,9 +389,9 @@ class SimulationDialog(QDialog):
         update_rate = self.animation_interval.value()
 
         # Set the animation speed
-        self.featured_chart.setAnimationDuration(update_rate)
-        self.standard_chart.setAnimationDuration(update_rate)
-        self.combined_chart.setAnimationDuration(update_rate)
+        self.exact_featured_chart.setAnimationDuration(update_rate)
+        self.exact_standard_chart.setAnimationDuration(update_rate)
+        self.exact_combined_chart.setAnimationDuration(update_rate)
 
         # Disable the parameters while simulating
         self.pulls.setEnabled(False)
@@ -442,20 +463,20 @@ class SimulationDialog(QDialog):
         self.total_rolls.clear()
 
         # Reset bar sets and axes
-        self.featured_bar_set.remove(0, self.featured_bar_set.count())
-        self.featured_axis_x.clear()
-        self.featured_axis_x.append(["0"])
-        self.standard_bar_set.remove(0, self.standard_bar_set.count())
-        self.standard_axis_x.clear()
-        self.standard_axis_x.append(["0"])
-        self.combined_bar_set.remove(0, self.combined_bar_set.count())
-        self.combined_axis_x.clear()
-        self.combined_axis_x.append(["0"])
+        self.exact_featured_bar_set.remove(0, self.exact_featured_bar_set.count())
+        self.exact_featured_axis_x.clear()
+        self.exact_featured_axis_x.append(["0"])
+        self.exact_standard_bar_set.remove(0, self.exact_standard_bar_set.count())
+        self.exact_standard_axis_x.clear()
+        self.exact_standard_axis_x.append(["0"])
+        self.exact_combined_bar_set.remove(0, self.exact_combined_bar_set.count())
+        self.exact_combined_axis_x.clear()
+        self.exact_combined_axis_x.append(["0"])
 
         # Force chart redraw
-        self.featured_chart_view.repaint()
-        self.standard_chart_view.repaint()
-        self.combined_chart_view.repaint()
+        self.exact_featured_chart_view.repaint()
+        self.exact_standard_chart_view.repaint()
+        self.exact_combined_chart_view.repaint()
 
     def update_ui_from_simulation(self):
         """Called by timer to update UI with latest simulation results"""
@@ -497,18 +518,18 @@ class SimulationDialog(QDialog):
 
         changed = False
 
-        while self.featured_bar_set.count() < len(featured_y_values):
-            self.featured_bar_set.append(0)
+        while self.exact_featured_bar_set.count() < len(featured_y_values):
+            self.exact_featured_bar_set.append(0)
             changed = True
 
         for i, y in enumerate(featured_y_values):
-            self.featured_bar_set.replace(i, y)
+            self.exact_featured_bar_set.replace(i, y)
 
         if changed:
-            for i, x in zip(self.featured_axis_x.categories(), featured_x_values):
-                self.featured_axis_x.replace(i, x)
-            for x in featured_x_values[len(self.featured_axis_x.categories()):]:
-                self.featured_axis_x.append(x)
+            for i, x in zip(self.exact_featured_axis_x.categories(), featured_x_values):
+                self.exact_featured_axis_x.replace(i, x)
+            for x in featured_x_values[len(self.exact_featured_axis_x.categories()):]:
+                self.exact_featured_axis_x.append(x)
 
         # Update Standard Chart
 
@@ -522,18 +543,18 @@ class SimulationDialog(QDialog):
 
         changed = False
 
-        while self.standard_bar_set.count() < len(standard_y_values):
-            self.standard_bar_set.append(0)
+        while self.exact_standard_bar_set.count() < len(standard_y_values):
+            self.exact_standard_bar_set.append(0)
             changed = True
 
         for i, y in enumerate(standard_y_values):
-            self.standard_bar_set.replace(i, y)
+            self.exact_standard_bar_set.replace(i, y)
 
         if changed:
-            for i, x in zip(self.standard_axis_x.categories(), standard_x_values):
-                self.standard_axis_x.replace(i, x)
-            for x in standard_x_values[len(self.standard_axis_x.categories()):]:
-                self.standard_axis_x.append(x)
+            for i, x in zip(self.exact_standard_axis_x.categories(), standard_x_values):
+                self.exact_standard_axis_x.replace(i, x)
+            for x in standard_x_values[len(self.exact_standard_axis_x.categories()):]:
+                self.exact_standard_axis_x.append(x)
 
         # Update Combined Chart
 
@@ -547,19 +568,19 @@ class SimulationDialog(QDialog):
 
         changed = False
 
-        while self.combined_bar_set.count() < len(combined_y_values):
-            self.combined_bar_set.append(0)
+        while self.exact_combined_bar_set.count() < len(combined_y_values):
+            self.exact_combined_bar_set.append(0)
             changed = True
 
         for i, y in enumerate(combined_y_values):
-            self.combined_bar_set.replace(i, y)
+            self.exact_combined_bar_set.replace(i, y)
         if changed:
-            for i, x in zip(self.combined_axis_x.categories(), combined_x_values):
-                self.combined_axis_x.replace(i, x)
-            for x in combined_x_values[len(self.combined_axis_x.categories()):]:
-                self.combined_axis_x.append(x)
+            for i, x in zip(self.exact_combined_axis_x.categories(), combined_x_values):
+                self.exact_combined_axis_x.replace(i, x)
+            for x in combined_x_values[len(self.exact_combined_axis_x.categories()):]:
+                self.exact_combined_axis_x.append(x)
 
         # Force chart redraw
-        self.featured_chart_view.repaint()
-        self.standard_chart_view.repaint()
-        self.combined_chart_view.repaint()
+        self.exact_featured_chart_view.repaint()
+        self.exact_standard_chart_view.repaint()
+        self.exact_combined_chart_view.repaint()

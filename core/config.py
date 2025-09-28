@@ -23,6 +23,6 @@ class CONFIG:
     SAVE_SHORTCUT = 'Ctrl+S'
     NEW_SHORTCUT = 'Ctrl+N'
 
-    SIM_WIDTH = 640
-    SIM_HEIGHT = 900
+    SIM_WIDTH = 960
+    SIM_HEIGHT = 760
     SIM_SIZE = (SIM_WIDTH, SIM_HEIGHT)
