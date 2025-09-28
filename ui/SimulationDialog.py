@@ -3,11 +3,10 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QGroupBox,
-    # QLabel,
     QPushButton,
-    QSlider,
+    QGridLayout,
     QLabel,
-    QFormLayout,
+    QProgressBar,
 )
 from PyQt6.QtGui import (
     QIcon,
@@ -49,6 +48,7 @@ class SimulationThread(QThread):
         self.featured_rolls = {}
         self.standard_rolls = {}
         self.total_rolls = {}
+        self.simulation_count = 0
 
     def run(self):
         while self._running:
@@ -71,6 +71,8 @@ class SimulationThread(QThread):
             else:
                 self.total_rolls[total_rolls] = 1
 
+            self.simulation_count += 1
+
     def stop(self):
         self._running = False
 
@@ -79,7 +81,8 @@ class SimulationThread(QThread):
         return (
             self.featured_rolls.copy(),
             self.standard_rolls.copy(),
-            self.total_rolls.copy()
+            self.total_rolls.copy(),
+            self.simulation_count
         )
 
 
@@ -127,22 +130,25 @@ class SimulationDialog(QDialog):
         top_section_layout = QHBoxLayout()
 
         param_groupbox = QGroupBox()
-        param_layout = QFormLayout()
+        param_layout = QGridLayout()
 
         # Pulls
         self.pulls = CountSpinbox()
         self.pulls.setValue(pulls)
-        param_layout.addRow("Pulls", self.pulls)
+        param_layout.addWidget(QLabel("Pulls"), 0, 0)
+        param_layout.addWidget(self.pulls, 0, 1)
 
         # Pity
         self.pity = CountSpinbox()
         self.pity.setRange(0, 100)
         self.pity.setValue(0)
-        param_layout.addRow("Current Pity", self.pity)
+        param_layout.addWidget(QLabel("Current Pity"), 1, 0)
+        param_layout.addWidget(self.pity, 1, 1)
 
         # Guaranteed
         self.guaranteed = BooleanComboBox(current_index=0, width=120)
-        param_layout.addRow("Guaranteed 50/50", self.guaranteed)
+        param_layout.addWidget(QLabel("Guaranteed 50/50"), 2, 0)
+        param_layout.addWidget(self.guaranteed, 2, 1)
 
         # Capturing Radiance State
         cr_state = [
@@ -152,38 +158,49 @@ class SimulationDialog(QDialog):
             "4 (100% CR)",
         ]
         self.cr = Dropdown(options=cr_state, current_index=0, width=120)
-        param_layout.addRow("Capturing Radiance", self.cr)
+        param_layout.addWidget(QLabel("Capturing Radiance"), 3, 0)
+        param_layout.addWidget(self.cr, 3, 1)
 
         param_groupbox.setLayout(param_layout)
         top_section_layout.addWidget(param_groupbox)
 
         sim_settings_groupbox = QGroupBox()
-        sim_settings_layout = QFormLayout()
+        sim_settings_layout = QGridLayout()
 
         # Simulation Length
         self.sim_length = CountSpinbox()
         self.sim_length.setRange(1000, 1000000)
         self.sim_length.setValue(100000)
-        sim_settings_layout.addRow("Simulation Length", self.sim_length)
+        sim_settings_layout.addWidget(QLabel("Simulation Length"), 0, 0)
+        sim_settings_layout.addWidget(self.sim_length, 0, 1)
 
         # Seed
         self.seed = CountSpinbox()
         self.seed.setRange(-2147483648, 2147483647)
         self.seed.setValue(0)
-        sim_settings_layout.addRow("Seed", self.seed)
+        sim_settings_layout.addWidget(QLabel("Seed"), 1, 0)
+        sim_settings_layout.addWidget(self.seed, 1, 1)
 
-        # Simulation Speed Slider
-        speed_hbox = QHBoxLayout()
-        self.speed_slider = QSlider(Qt.Orientation.Horizontal)
-        self.speed_slider.setMinimum(100)
-        self.speed_slider.setMaximum(900)
-        self.speed_slider.setValue(100)
-        self.speed_label = QLabel("100 ms")
-        self.speed_slider.valueChanged.connect(lambda v: self.speed_label.setText(f"{v} ms"))
-        self.speed_slider.valueChanged.connect(self.update_ui_refresh_rate)
-        speed_hbox.addWidget(self.speed_slider)
-        speed_hbox.addWidget(self.speed_label)
-        sim_settings_layout.addRow("Animation Interval", speed_hbox)
+        # Animation Interval
+        self.animation_interval = CountSpinbox()
+        self.animation_interval.setRange(100, 900)
+        self.animation_interval.setValue(100)
+        # Add a suffix label
+        self.animation_interval.setSuffix(" ms")
+        sim_settings_layout.addWidget(QLabel("Animation Interval"), 2, 0)
+        sim_settings_layout.addWidget(self.animation_interval, 2, 1)
+
+        # Progress Bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("%v / %m  (%p%)")
+        sim_settings_layout.addWidget(self.progress_bar, 3, 0, 1, 2)  # Span two columns
+
+        # Link progress bar range to simulation length
+        self.sim_length.valueChanged.connect(
+            lambda value: self.progress_bar.setRange(0, value)
+        )
+        self.progress_bar.setRange(0, self.sim_length.value())
 
         sim_settings_groupbox.setLayout(sim_settings_layout)
         top_section_layout.addWidget(sim_settings_groupbox)
@@ -341,14 +358,6 @@ class SimulationDialog(QDialog):
         layout.addStretch(1)
         self.setLayout(layout)
 
-    def update_ui_refresh_rate(self, ms: int):
-        """Update how often the UI refreshes from the simulation thread"""
-        if self.update_timer.isActive():
-            self.update_timer.setInterval(ms)
-            self.featured_chart.setAnimationDuration(ms)
-            self.standard_chart.setAnimationDuration(ms)
-            self.combined_chart.setAnimationDuration(ms)
-
     def start_simulation_thread(self):
         # Get the parameters
         pulls = self.pulls.value()
@@ -356,7 +365,7 @@ class SimulationDialog(QDialog):
         guaranteed = self.guaranteed.value()
         cr = self.cr.currentIndex()
         seed = self.seed.value()
-        update_rate = self.speed_slider.value()
+        update_rate = self.animation_interval.value()
 
         # Set the animation speed
         self.featured_chart.setAnimationDuration(update_rate)
@@ -370,6 +379,7 @@ class SimulationDialog(QDialog):
         self.cr.setEnabled(False)
         self.seed.setEnabled(False)
         self.sim_length.setEnabled(False)
+        self.animation_interval.setEnabled(False)
 
         # Disable the run and reset buttons, enable the stop button
         self.run_button.setEnabled(False)
@@ -411,6 +421,11 @@ class SimulationDialog(QDialog):
             self.sim_thread.stop()
             self.sim_thread.wait()
 
+        # Reset progress bar to initial state
+        self.progress_bar.setValue(0)
+        sim_length = self.sim_length.value()
+        self.progress_bar.setRange(0, sim_length)
+
         # Re-enable all parameters
         self.pulls.setEnabled(True)
         self.pity.setEnabled(True)
@@ -418,6 +433,7 @@ class SimulationDialog(QDialog):
         self.cr.setEnabled(True)
         self.seed.setEnabled(True)
         self.sim_length.setEnabled(True)
+        self.animation_interval.setEnabled(True)
 
         # Reset the model and charts
         self.model = None
@@ -447,7 +463,16 @@ class SimulationDialog(QDialog):
             return
 
         # Get current results from simulation thread
-        featured_rolls, standard_rolls, total_rolls = self.sim_thread.get_current_results()
+        featured_rolls, standard_rolls, total_rolls, simulation_count = self.sim_thread.get_current_results()
+
+        # Update progress bar
+        self.progress_bar.setValue(simulation_count)
+
+        # Check if simulation is complete
+        if simulation_count >= self.sim_length.value():
+            self.stop_simulation_thread()
+            # Ensure progress bar is full
+            self.progress_bar.setValue(self.sim_length.value())
 
         # Update local copies
         self.featured_rolls = featured_rolls
