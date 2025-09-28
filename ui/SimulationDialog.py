@@ -17,8 +17,8 @@ from PyQt6.QtCore import (
     Qt,
     QRectF,
     QThread,
-    pyqtSignal,
     QObject,
+    QTimer,
 )
 from PyQt6.QtCharts import (
     QChart,
@@ -41,27 +41,46 @@ from .BooleanComboBox import BooleanComboBox
 
 
 class SimulationThread(QThread):
-    cycle_done = pyqtSignal(int, int)  # featured_rolls, standard_rolls
-    speed_changed = pyqtSignal(int)    # ms
-
-    def __init__(self, model: GIGachaModel, pulls: int, speed: int = 100, parent: QObject = None):
+    def __init__(self, model: GIGachaModel, pulls: int, parent: QObject = None):
         super().__init__(parent)
         self.model = model
         self.pulls = pulls
         self._running = True
-        self._speed = speed
+        self.featured_rolls = {}
+        self.standard_rolls = {}
+        self.total_rolls = {}
 
     def run(self):
         while self._running:
             new_featured_rolls, new_standard_rolls = self.model.batch_pull_count(self.pulls)
-            self.cycle_done.emit(new_featured_rolls, new_standard_rolls)
-            self.msleep(self._speed)
+
+            # Update internal counts
+            if new_featured_rolls in self.featured_rolls:
+                self.featured_rolls[new_featured_rolls] += 1
+            else:
+                self.featured_rolls[new_featured_rolls] = 1
+
+            if new_standard_rolls in self.standard_rolls:
+                self.standard_rolls[new_standard_rolls] += 1
+            else:
+                self.standard_rolls[new_standard_rolls] = 1
+
+            total_rolls = new_featured_rolls + new_standard_rolls
+            if total_rolls in self.total_rolls:
+                self.total_rolls[total_rolls] += 1
+            else:
+                self.total_rolls[total_rolls] = 1
 
     def stop(self):
         self._running = False
 
-    def set_speed(self, ms: int):
-        self._speed = ms
+    def get_current_results(self):
+        """Thread-safe method to get current simulation results"""
+        return (
+            self.featured_rolls.copy(),
+            self.standard_rolls.copy(),
+            self.total_rolls.copy()
+        )
 
 
 class SimulationDialog(QDialog):
@@ -88,6 +107,10 @@ class SimulationDialog(QDialog):
         self.standard_rolls = {}
         self.total_rolls = {}
         self.sim_thread = None
+
+        # UI update timer
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.update_ui_from_simulation)
 
         self.init_UI(pulls)
 
@@ -152,18 +175,15 @@ class SimulationDialog(QDialog):
         # Simulation Speed Slider
         speed_hbox = QHBoxLayout()
         self.speed_slider = QSlider(Qt.Orientation.Horizontal)
-        self.speed_slider.setMinimum(20)
-        self.speed_slider.setMaximum(300)
-        # self.speed_slider.setSingleStep(50)
-        # self.speed_slider.setTickInterval(50)
-        # self.speed_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        self.speed_slider.setValue(20)
-        self.speed_label = QLabel("20 ms")
+        self.speed_slider.setMinimum(100)
+        self.speed_slider.setMaximum(900)
+        self.speed_slider.setValue(100)
+        self.speed_label = QLabel("100 ms")
         self.speed_slider.valueChanged.connect(lambda v: self.speed_label.setText(f"{v} ms"))
-        self.speed_slider.valueChanged.connect(self.update_animation_speed)
+        self.speed_slider.valueChanged.connect(self.update_ui_refresh_rate)
         speed_hbox.addWidget(self.speed_slider)
         speed_hbox.addWidget(self.speed_label)
-        sim_settings_layout.addRow("Simulation Speed", speed_hbox)
+        sim_settings_layout.addRow("Animation Interval", speed_hbox)
 
         sim_settings_groupbox.setLayout(sim_settings_layout)
         top_section_layout.addWidget(sim_settings_groupbox)
@@ -321,12 +341,13 @@ class SimulationDialog(QDialog):
         layout.addStretch(1)
         self.setLayout(layout)
 
-    def update_animation_speed(self, ms: int):
-        if hasattr(self, 'sim_thread') and self.sim_thread.isRunning():
-            self.sim_thread.set_speed(ms)
-            # Change the animation duration of the charts
+    def update_ui_refresh_rate(self, ms: int):
+        """Update how often the UI refreshes from the simulation thread"""
+        if self.update_timer.isActive():
+            self.update_timer.setInterval(ms)
             self.featured_chart.setAnimationDuration(ms)
             self.standard_chart.setAnimationDuration(ms)
+            self.combined_chart.setAnimationDuration(ms)
 
     def start_simulation_thread(self):
         # Get the parameters
@@ -335,7 +356,12 @@ class SimulationDialog(QDialog):
         guaranteed = self.guaranteed.value()
         cr = self.cr.currentIndex()
         seed = self.seed.value()
-        speed = self.speed_slider.value()
+        update_rate = self.speed_slider.value()
+
+        # Set the animation speed
+        self.featured_chart.setAnimationDuration(update_rate)
+        self.standard_chart.setAnimationDuration(update_rate)
+        self.combined_chart.setAnimationDuration(update_rate)
 
         # Disable the parameters while simulating
         self.pulls.setEnabled(False)
@@ -344,7 +370,6 @@ class SimulationDialog(QDialog):
         self.cr.setEnabled(False)
         self.seed.setEnabled(False)
         self.sim_length.setEnabled(False)
-        # self.speed_slider.setEnabled(False)
 
         # Disable the run and reset buttons, enable the stop button
         self.run_button.setEnabled(False)
@@ -355,22 +380,37 @@ class SimulationDialog(QDialog):
         if self.model is None:
             self.model = GIGachaModel(pity, cr, seed, guaranteed)
 
-        # Start the simulation thread
-        self.sim_thread = SimulationThread(self.model, pulls, speed)
-        self.sim_thread.cycle_done.connect(self.handle_simulation_cycle)
+        # Start the simulation thread (no sleep, runs at max speed)
+        self.sim_thread = SimulationThread(self.model, pulls)
         self.sim_thread.start()
 
+        # Start the UI update timer
+        self.update_timer.setInterval(update_rate)
+        self.update_timer.start()
+
     def stop_simulation_thread(self):
+        # Stop the UI update timer
+        self.update_timer.stop()
+
         # Stop the simulation thread if it's running
-        if self.sim_thread.isRunning():
+        if self.sim_thread and self.sim_thread.isRunning():
             self.sim_thread.stop()
             self.sim_thread.wait()
+
         # Enable the run and reset buttons, disable the stop button
         self.reset_button.setEnabled(True)
         self.run_button.setEnabled(True)
         self.stop_button.setEnabled(False)
 
     def reset_simulation(self):
+        # Stop any running simulation first
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+
+        if self.sim_thread and self.sim_thread.isRunning():
+            self.sim_thread.stop()
+            self.sim_thread.wait()
+
         # Re-enable all parameters
         self.pulls.setEnabled(True)
         self.pity.setEnabled(True)
@@ -378,12 +418,13 @@ class SimulationDialog(QDialog):
         self.cr.setEnabled(True)
         self.seed.setEnabled(True)
         self.sim_length.setEnabled(True)
-        # self.speed_slider.setEnabled(True)
 
         # Reset the model and charts
         self.model = None
         self.featured_rolls.clear()
         self.standard_rolls.clear()
+        self.total_rolls.clear()
+
         # Reset bar sets and axes
         self.featured_bar_set.remove(0, self.featured_bar_set.count())
         self.featured_axis_x.clear()
@@ -391,32 +432,29 @@ class SimulationDialog(QDialog):
         self.standard_bar_set.remove(0, self.standard_bar_set.count())
         self.standard_axis_x.clear()
         self.standard_axis_x.append(["0"])
-        self.total_rolls.clear()
         self.combined_bar_set.remove(0, self.combined_bar_set.count())
         self.combined_axis_x.clear()
         self.combined_axis_x.append(["0"])
+
         # Force chart redraw
         self.featured_chart_view.repaint()
         self.standard_chart_view.repaint()
         self.combined_chart_view.repaint()
 
-    def handle_simulation_cycle(self, new_featured_rolls, new_standard_rolls):
-        if new_featured_rolls in self.featured_rolls:
-            self.featured_rolls[new_featured_rolls] += 1
-        else:
-            self.featured_rolls[new_featured_rolls] = 1
+    def update_ui_from_simulation(self):
+        """Called by timer to update UI with latest simulation results"""
+        if not self.sim_thread or not self.sim_thread.isRunning():
+            return
 
-        if new_standard_rolls in self.standard_rolls:
-            self.standard_rolls[new_standard_rolls] += 1
-        else:
-            self.standard_rolls[new_standard_rolls] = 1
+        # Get current results from simulation thread
+        featured_rolls, standard_rolls, total_rolls = self.sim_thread.get_current_results()
 
-        total_rolls = new_featured_rolls + new_standard_rolls
-        if total_rolls in self.total_rolls:
-            self.total_rolls[total_rolls] += 1
-        else:
-            self.total_rolls[total_rolls] = 1
+        # Update local copies
+        self.featured_rolls = featured_rolls
+        self.standard_rolls = standard_rolls
+        self.total_rolls = total_rolls
 
+        # Update charts
         self.update_charts()
 
     def update_charts(self):
