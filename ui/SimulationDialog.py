@@ -9,10 +9,14 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QTabWidget,
     QWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
 )
 from PyQt6.QtGui import (
     QIcon,
     QPainter,
+    QColor,
 )
 from PyQt6.QtCore import (
     Qt,
@@ -29,6 +33,7 @@ from PyQt6.QtCharts import (
     QBarCategoryAxis,
     QValueAxis,
 )
+from threading import Lock
 
 from core.config import CONFIG
 from core.assets import ASSETS
@@ -50,42 +55,51 @@ class SimulationThread(QThread):
         self.featured_rolls = {}
         self.standard_rolls = {}
         self.total_rolls = {}
+        self.joint_rolls = {}
         self.simulation_count = 0
+        self.lock = Lock()  # For thread-safe access to results
 
     def run(self):
         while self._running:
             new_featured_rolls, new_standard_rolls = self.model.batch_pull_count(self.pulls)
+            with self.lock:
+                # Update internal counts
+                if new_featured_rolls in self.featured_rolls:
+                    self.featured_rolls[new_featured_rolls] += 1
+                else:
+                    self.featured_rolls[new_featured_rolls] = 1
 
-            # Update internal counts
-            if new_featured_rolls in self.featured_rolls:
-                self.featured_rolls[new_featured_rolls] += 1
-            else:
-                self.featured_rolls[new_featured_rolls] = 1
+                if new_standard_rolls in self.standard_rolls:
+                    self.standard_rolls[new_standard_rolls] += 1
+                else:
+                    self.standard_rolls[new_standard_rolls] = 1
 
-            if new_standard_rolls in self.standard_rolls:
-                self.standard_rolls[new_standard_rolls] += 1
-            else:
-                self.standard_rolls[new_standard_rolls] = 1
+                total_rolls = new_featured_rolls + new_standard_rolls
+                if total_rolls in self.total_rolls:
+                    self.total_rolls[total_rolls] += 1
+                else:
+                    self.total_rolls[total_rolls] = 1
 
-            total_rolls = new_featured_rolls + new_standard_rolls
-            if total_rolls in self.total_rolls:
-                self.total_rolls[total_rolls] += 1
-            else:
-                self.total_rolls[total_rolls] = 1
+                if (new_featured_rolls, new_standard_rolls) in self.joint_rolls:
+                    self.joint_rolls[(new_featured_rolls, new_standard_rolls)] += 1
+                else:
+                    self.joint_rolls[(new_featured_rolls, new_standard_rolls)] = 1
 
-            self.simulation_count += 1
+                self.simulation_count += 1
 
     def stop(self):
         self._running = False
 
     def get_current_results(self):
         """Thread-safe method to get current simulation results"""
-        return (
-            self.featured_rolls.copy(),
-            self.standard_rolls.copy(),
-            self.total_rolls.copy(),
-            self.simulation_count
-        )
+        with self.lock:
+            return (
+                self.featured_rolls.copy(),
+                self.standard_rolls.copy(),
+                self.total_rolls.copy(),
+                self.joint_rolls.copy(),
+                self.simulation_count
+            )
 
 
 class SimulationDialog(QDialog):
@@ -111,11 +125,14 @@ class SimulationDialog(QDialog):
         self.featured_rolls = {}
         self.standard_rolls = {}
         self.total_rolls = {}
+        self.joint_rolls = {}
         self.sim_thread = None
 
         # UI update timer
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_ui_from_simulation)
+
+        self.joint_table = None
 
         self.init_UI(pulls)
 
@@ -123,6 +140,9 @@ class SimulationDialog(QDialog):
         layout = QHBoxLayout()
 
         top_section_layout = QVBoxLayout()
+
+        title_label = QLabel("<b>Pull Simulator</b>")
+        top_section_layout.addWidget(title_label)
 
         param_groupbox = QGroupBox()
         param_layout = QGridLayout()
@@ -230,11 +250,13 @@ class SimulationDialog(QDialog):
         exact_tab = QWidget()
         at_most_tab = QWidget()
         at_least_tab = QWidget()
+        joint_tab = QWidget()
 
         # Add tabs to tab widget
-        self.tab_widget.addTab(exact_tab, "Exact")
+        self.tab_widget.addTab(exact_tab, "Exactly")
         self.tab_widget.addTab(at_most_tab, "At Most")
         self.tab_widget.addTab(at_least_tab, "At Least")
+        self.tab_widget.addTab(joint_tab, "Joint Probability Distribution")
 
         # Set up "Exact" tab with charts
         exact_layout = QVBoxLayout()
@@ -607,6 +629,20 @@ class SimulationDialog(QDialog):
         at_least_layout.addStretch(1)
         at_least_tab.setLayout(at_least_layout)
 
+        # Joint Probability Tab
+        joint_layout = QVBoxLayout()
+        self.joint_table = QTableWidget()
+        self.joint_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.joint_table.setRowCount(1)
+        self.joint_table.setColumnCount(1)
+        self.joint_table.setHorizontalHeaderLabels(["Standard"])
+        self.joint_table.setVerticalHeaderLabels(["Featured"])
+        self.joint_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.joint_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+        joint_layout.addWidget(self.joint_table)
+        joint_tab.setLayout(joint_layout)
+
         # Add tab widget to main layout
         layout.addWidget(self.tab_widget)
 
@@ -738,6 +774,13 @@ class SimulationDialog(QDialog):
         self.at_least_combined_axis_x.clear()
         self.at_least_combined_axis_x.append(["0"])
 
+        # Reset joint table
+        self.joint_table.clear()
+        self.joint_table.setRowCount(1)
+        self.joint_table.setColumnCount(1)
+        self.joint_table.setHorizontalHeaderLabels(["Standard"])
+        self.joint_table.setVerticalHeaderLabels(["Featured"])
+
         # Force chart redraw
         self.exact_featured_chart_view.repaint()
         self.exact_standard_chart_view.repaint()
@@ -755,7 +798,7 @@ class SimulationDialog(QDialog):
             return
 
         # Get current results from simulation thread
-        featured_rolls, standard_rolls, total_rolls, simulation_count = self.sim_thread.get_current_results()
+        featured_rolls, standard_rolls, total_rolls, joint_rolls, simulation_count = self.sim_thread.get_current_results()
 
         # Update progress bar
         self.progress_bar.setValue(simulation_count)
@@ -770,9 +813,12 @@ class SimulationDialog(QDialog):
         self.featured_rolls = featured_rolls
         self.standard_rolls = standard_rolls
         self.total_rolls = total_rolls
+        self.joint_rolls = joint_rolls
 
         # Update charts
         self.update_charts()
+        # Update joint probability table
+        self.update_joint_table()
 
     def update_charts(self):
 
@@ -1010,3 +1056,48 @@ class SimulationDialog(QDialog):
         self.at_least_featured_chart_view.repaint()
         self.at_least_standard_chart_view.repaint()
         self.at_least_combined_chart_view.repaint()
+
+    def update_joint_table(self):
+        """Update the joint probability table as a 2D heatmap."""
+        joint = self.joint_rolls
+        if not joint:
+            self.joint_table.clear()
+            self.joint_table.setRowCount(1)
+            self.joint_table.setColumnCount(1)
+            self.joint_table.setHorizontalHeaderLabels(["Standard 5★"])
+            self.joint_table.setVerticalHeaderLabels(["Featured 5★"])
+            return
+
+        # Get sorted unique values for featured and standard
+        featured_keys = sorted(set(k[0] for k in joint.keys()))
+        standard_keys = sorted(set(k[1] for k in joint.keys()))
+        total = sum(joint.values())
+
+        self.joint_table.setRowCount(len(featured_keys))
+        self.joint_table.setColumnCount(len(standard_keys))
+        self.joint_table.setHorizontalHeaderLabels([str(s) for s in standard_keys])
+        self.joint_table.setVerticalHeaderLabels([str(f) for f in featured_keys])
+
+        # Fill table with probabilities
+        for i, f in enumerate(featured_keys):
+            for j, s in enumerate(standard_keys):
+                prob = (joint.get((f, s), 0) / total * 100) if total > 0 else 0
+                item = QTableWidgetItem(f"{prob:.4f}%")
+                # Make the text larger
+                font = item.font()
+                font.setPointSize(11)
+                item.setFont(font)
+                # Make item unselectable
+                item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                # Center align the text
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
+                # Color code based on probability (sqrt scale + min intensity)
+                if prob > 0:
+                    # sqrt scale: makes low values more visible
+                    color_intensity = int(40 + 215 * (prob / 100) ** 0.5)
+                else:
+                    color_intensity = 0
+                    item.setText("")
+                color = QColor(0, color_intensity, color_intensity)
+                item.setBackground(color)
+                self.joint_table.setItem(i, j, item)
