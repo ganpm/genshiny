@@ -30,6 +30,28 @@ class GIGachaModel:
         self.cr_flag = False
         self.guaranteed = guaranteed
 
+    def pull(self):
+        roll = self.rng.random()
+        success = True
+        if self.pt <= self.soft_pt:
+            success = roll < self.normal_p
+        elif self.pt < self.hard_pt:
+            success = roll < self.normal_p + self.p_gain * (self.pt - self.soft_pt)
+        else:
+            success = True
+
+        if success:
+            self.pt = 0
+            if self.guaranteed or self.rng.random() < 0.5:
+                self.guaranteed = False
+                return PullType.Featured
+            else:
+                self.guaranteed = True
+                return PullType.Standard
+        else:
+            self.pt += 1
+            return PullType.Normal
+
     def pull_cr(self):
         self.cr_flag = False
 
@@ -63,6 +85,114 @@ class GIGachaModel:
                     elif self.cr == 2:
                         cr_roll = self.rng.random()
                         if cr_roll < 0.5:
+                            self.cr = 0
+                            self.guaranteed = False
+                            self.cr_flag = True
+                            return PullType.Featured
+                        else:
+                            self.cr = 3
+                            self.guaranteed = True
+                            return PullType.Standard
+                    else:
+                        self.cr = 0
+                        self.guaranteed = False
+                        self.cr_flag = True
+                        return PullType.Featured
+        else:
+            self.pt += 1
+            return PullType.Normal
+
+    def pull_cr_v2(self):
+        self.cr_flag = False
+
+        roll = self.rng.random()
+        success = True
+        if self.pt <= self.soft_pt:
+            success = roll < self.normal_p
+        elif self.pt < self.hard_pt:
+            success = roll < self.normal_p + self.p_gain * (self.pt - self.soft_pt)
+        else:
+            success = True
+
+        if success:
+            self.pt = 0
+            if self.guaranteed:
+                self.guaranteed = False
+                return PullType.Featured
+            else:
+                ff_roll = self.rng.random()
+                if ff_roll < 0.5:
+                    self.guaranteed = False
+                    return PullType.Featured
+                else:
+                    if self.cr == 0:
+                        self.cr = 1
+                        self.guaranteed = True
+                        return PullType.Standard
+                    elif self.cr == 1:
+                        if self.rng.random() < 0.5:
+                            self.cr = 0
+                            self.guaranteed = False
+                            self.cr_flag = True
+                            return PullType.Featured
+                        else:
+                            self.cr = 2
+                            self.guaranteed = True
+                            return PullType.Standard
+                    else:
+                        self.cr = 0
+                        self.guaranteed = False
+                        self.cr_flag = True
+                        return PullType.Featured
+        else:
+            self.pt += 1
+            return PullType.Normal
+
+    def pull_cr_v3(self):
+        self.cr_flag = False
+
+        roll = self.rng.random()
+        success = True
+        if self.pt <= self.soft_pt:
+            success = roll < self.normal_p
+        elif self.pt < self.hard_pt:
+            success = roll < self.normal_p + self.p_gain * (self.pt - self.soft_pt)
+        else:
+            success = True
+
+        if success:
+            self.pt = 0
+            if self.guaranteed:
+                self.guaranteed = False
+                return PullType.Featured
+            else:
+                ff_roll = self.rng.random()
+                if ff_roll < 0.5:
+                    self.guaranteed = False
+                    return PullType.Featured
+                else:
+                    if self.cr == 0:
+                        if self.rng.random() < 0.25:
+                            self.cr = 0
+                            self.guaranteed = False
+                            self.cr_flag = True
+                            return PullType.Featured
+                        else:
+                            self.cr = 1
+                            self.guaranteed = True
+                            return PullType.Standard
+                    elif self.cr == 1:
+                        if self.rng.random() < 0.50:
+                            self.cr = 0
+                            self.guaranteed = False
+                            self.cr_flag = True
+                            return PullType.Featured
+                        else:
+                            self.cr = 2
+                            self.guaranteed = True
+                            return PullType.Standard
+                    elif self.cr == 2:
+                        if self.rng.random() < 0.75:
                             self.cr = 0
                             self.guaranteed = False
                             self.cr_flag = True

@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (
-    QDialog,
+    QMainWindow,
     QVBoxLayout,
     QHBoxLayout,
     QGroupBox,
@@ -39,7 +39,7 @@ from core.config import CONFIG
 from core.assets import ASSETS
 from core.text import TEXT
 from core.model import GIGachaModel
-from ui.utils import set_titlebar_darkmode
+from ui.utils import set_titlebar_darkmode, cmap
 
 from .CountSpinbox import CountSpinbox
 from .Dropdown import Dropdown
@@ -102,7 +102,7 @@ class SimulationThread(QThread):
             )
 
 
-class SimulationDialog(QDialog):
+class SimulationWindow(QMainWindow):
     def __init__(self, parent=None, pulls=600):
         super().__init__(parent)
         set_titlebar_darkmode(self)
@@ -110,6 +110,8 @@ class SimulationDialog(QDialog):
         self.setWindowIcon(QIcon(ASSETS.APP_ICON))
 
         # Center the dialog on the screen
+        # Disable resizing
+        self.setFixedSize(*CONFIG.SIM_SIZE)
         screen = self.screen()
         screen_geometry = screen.geometry()
         self.setGeometry(
@@ -117,9 +119,8 @@ class SimulationDialog(QDialog):
             screen_geometry.y() + (screen_geometry.height() - CONFIG.SIM_HEIGHT) // 2,
             CONFIG.SIM_WIDTH,
             CONFIG.SIM_HEIGHT)
-        self.setFixedSize(*CONFIG.SIM_SIZE)
-
-        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+        # Disable maximize button
+        self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
         self.model = None
         self.featured_rolls = {}
@@ -134,10 +135,14 @@ class SimulationDialog(QDialog):
 
         self.joint_table = None
 
-        self.init_UI(pulls)
+        self.initUI(pulls)
 
-    def init_UI(self, pulls):
+    def initUI(self, pulls):
+        central_widget = QWidget()
+
         layout = QHBoxLayout()
+        central_widget.setLayout(layout)
+        self.setCentralWidget(central_widget)
 
         top_section_layout = QVBoxLayout()
 
@@ -261,7 +266,6 @@ class SimulationDialog(QDialog):
         # Set up "Exact" tab with charts
         exact_layout = QVBoxLayout()
 
-        chart_height = 150
         # Featured Character Chart
 
         self.exact_featured_chart_view = QChartView()
@@ -274,7 +278,7 @@ class SimulationDialog(QDialog):
         self.exact_featured_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self.exact_featured_chart.setAnimationDuration(100)
         self.exact_featured_chart.legend().setVisible(False)
-        self.exact_featured_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.exact_featured_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
         self.exact_featured_bar_set = QBarSet("Featured 5 Star")
 
@@ -315,7 +319,7 @@ class SimulationDialog(QDialog):
         self.exact_standard_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self.exact_standard_chart.setAnimationDuration(100)
         self.exact_standard_chart.legend().setVisible(False)
-        self.exact_standard_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.exact_standard_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
         self.exact_standard_bar_set = QBarSet("Standard 5 Star")
         self.exact_standard_bar_set.append(list(self.standard_rolls.values()))
@@ -357,7 +361,7 @@ class SimulationDialog(QDialog):
         self.exact_combined_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self.exact_combined_chart.setAnimationDuration(100)
         self.exact_combined_chart.legend().setVisible(False)
-        self.exact_combined_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.exact_combined_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
         self.exact_combined_bar_set = QBarSet("Total 5 Star")
 
@@ -403,7 +407,7 @@ class SimulationDialog(QDialog):
         self.at_most_featured_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self.at_most_featured_chart.setAnimationDuration(100)
         self.at_most_featured_chart.legend().setVisible(False)
-        self.at_most_featured_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.at_most_featured_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
         self.at_most_featured_bar_set = QBarSet("Featured 5 Star")
 
@@ -441,7 +445,7 @@ class SimulationDialog(QDialog):
         self.at_most_standard_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self.at_most_standard_chart.setAnimationDuration(100)
         self.at_most_standard_chart.legend().setVisible(False)
-        self.at_most_standard_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.at_most_standard_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
         self.at_most_standard_bar_set = QBarSet("Standard 5 Star")
 
@@ -479,7 +483,7 @@ class SimulationDialog(QDialog):
         self.at_most_combined_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self.at_most_combined_chart.setAnimationDuration(100)
         self.at_most_combined_chart.legend().setVisible(False)
-        self.at_most_combined_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.at_most_combined_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
         self.at_most_combined_bar_set = QBarSet("Total 5 Star")
 
@@ -523,7 +527,7 @@ class SimulationDialog(QDialog):
         self.at_least_featured_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self.at_least_featured_chart.setAnimationDuration(100)
         self.at_least_featured_chart.legend().setVisible(False)
-        self.at_least_featured_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.at_least_featured_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
         self.at_least_featured_bar_set = QBarSet("Featured 5 Star")
 
@@ -561,7 +565,7 @@ class SimulationDialog(QDialog):
         self.at_least_standard_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self.at_least_standard_chart.setAnimationDuration(100)
         self.at_least_standard_chart.legend().setVisible(False)
-        self.at_least_standard_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.at_least_standard_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
         self.at_least_standard_bar_set = QBarSet("Standard 5 Star")
 
@@ -599,7 +603,7 @@ class SimulationDialog(QDialog):
         self.at_least_combined_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         self.at_least_combined_chart.setAnimationDuration(100)
         self.at_least_combined_chart.legend().setVisible(False)
-        self.at_least_combined_chart.setPlotArea(QRectF(70, 10, 520, chart_height))
+        self.at_least_combined_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
         self.at_least_combined_bar_set = QBarSet("Total 5 Star")
 
@@ -644,10 +648,9 @@ class SimulationDialog(QDialog):
         joint_tab.setLayout(joint_layout)
 
         # Add tab widget to main layout
-        layout.addWidget(self.tab_widget)
+        layout.addWidget(self.tab_widget, stretch=1)
 
-        layout.addStretch(1)
-        self.setLayout(layout)
+        # layout.addStretch(1)
 
         # Set default tab to "Exact"
         self.tab_widget.setCurrentIndex(0)
@@ -688,7 +691,8 @@ class SimulationDialog(QDialog):
 
         # Initialize the model if not already done
         if self.model is None:
-            self.model = GIGachaModel(pity, cr, seed, guaranteed)
+            self.model = GIGachaModel(
+                pt=pity, cr=cr, seed=seed, guaranteed=guaranteed)
 
         # Start the simulation thread (no sleep, runs at max speed)
         self.sim_thread = SimulationThread(self.model, pulls)
@@ -1082,7 +1086,7 @@ class SimulationDialog(QDialog):
         for i, f in enumerate(featured_keys):
             for j, s in enumerate(standard_keys):
                 prob = (joint.get((f, s), 0) / total * 100) if total > 0 else 0
-                item = QTableWidgetItem(f"{prob:.4f}%")
+                item = QTableWidgetItem(f"{prob:>8.4f}%")
                 # Make the text larger
                 font = item.font()
                 font.setPointSize(11)
@@ -1091,13 +1095,11 @@ class SimulationDialog(QDialog):
                 item.setFlags(Qt.ItemFlag.ItemIsEnabled)
                 # Center align the text
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
-                # Color code based on probability (sqrt scale + min intensity)
-                if prob > 0:
-                    # sqrt scale: makes low values more visible
-                    color_intensity = int(40 + 215 * (prob / 100) ** 0.5)
-                else:
-                    color_intensity = 0
+                if prob <= 0:
                     item.setText("")
-                color = QColor(0, color_intensity, color_intensity)
+                # Color code based on probability (sqrt scale + min intensity)
+                # color_intensity = int(30 + 215 * (prob / 100) ** 0.5)
+                # color = QColor(0, color_intensity, color_intensity)
+                color = QColor(*cmap(prob / 100))
                 item.setBackground(color)
                 self.joint_table.setItem(i, j, item)

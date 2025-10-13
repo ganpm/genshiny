@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QGroupBox,
     QLabel,
-    # QDialogButtonBox,
     QPushButton,
     QFileDialog,
     QGridLayout,
@@ -29,7 +28,7 @@ from PyQt6.QtCharts import (
 
 from .CountSpinbox import CountSpinbox
 from .ErrorDialog import ErrorDialog
-from .SimulationDialog import SimulationDialog
+from .SimulationDialog import SimulationWindow
 from .utils import (
     set_titlebar_darkmode,
     left_aligned_layout,
@@ -388,6 +387,7 @@ class MainWindow(QMainWindow):
             fates_from_starglitter +
             fates_from_inventory +
             fates_from_crystal)
+        self.total_pulls = total_fates
         self.total_fates.setText(f"<b>{total_fates}</b>")
 
         # Generate the pity chart
@@ -406,8 +406,5 @@ class MainWindow(QMainWindow):
     def simulate(self):
         """Simulate pulls based on the available fates."""
 
-        pulls = self.total_fates.text()
-        pulls = int(pulls.replace("<b>", "").replace("</b>", ""))
-        dialog = SimulationDialog(self, pulls)
-
-        dialog.exec()
+        dialog = SimulationWindow(pulls=self.total_pulls, parent=self)
+        dialog.show()

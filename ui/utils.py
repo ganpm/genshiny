@@ -1,4 +1,5 @@
 import sys
+import math
 
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -8,7 +9,7 @@ from PyQt6.QtWidgets import (
 )
 
 
-def set_titlebar_darkmode(widget):
+def set_titlebar_darkmode(widget: QWidget):
     if sys.platform == 'win32':
         # Windows 10/11 dark titlebar via dwm API
         try:
@@ -66,3 +67,33 @@ def right_aligned_layout(
                 print(f"Failed to add widget: {e}")
                 continue
     return box
+
+
+def cmap(
+        p: float,
+        normalization_method: str = 'quadratic',
+        cutoff: float = 0.0,
+        cutoff_intensity: int = 30,
+        min_intensity: int = 40,
+        max_intensity: int = 215,
+        ) -> tuple[int, int, int]:
+    """Color map from probability to color (RGB tuple). Used in visualizing the probability values in the joint distribution."""
+
+    if p <= cutoff:
+        k = cutoff_intensity
+        return (0, k, k)
+
+    match normalization_method:
+        case 'linear':
+            x = p
+        case 'sqrt':
+            x = p ** 0.5
+        case 'quadratic':
+            x = (1 - (p-1) ** 2) ** 0.5
+        case 'log':
+            x = math.log10(9 * p + 1)
+        case _:
+            raise ValueError(f"Unknown norm type: {normalization_method}")
+    k = int(min_intensity + (max_intensity - min_intensity) * x)
+
+    return (0, k, k)

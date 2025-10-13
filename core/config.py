@@ -1,3 +1,4 @@
+from core.containers import WidgetGeometry
 
 
 class CONFIG:
@@ -23,6 +24,8 @@ class CONFIG:
     SAVE_SHORTCUT = 'Ctrl+S'
     NEW_SHORTCUT = 'Ctrl+N'
 
-    SIM_WIDTH = 960
-    SIM_HEIGHT = 780
+    SIM_WIDTH = 1080
+    SIM_HEIGHT = 860
     SIM_SIZE = (SIM_WIDTH, SIM_HEIGHT)
+
+    CHART = WidgetGeometry(70, 10, 660, 180)
