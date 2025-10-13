@@ -38,7 +38,7 @@ from threading import Lock
 from core.config import CONFIG
 from core.assets import ASSETS
 from core.text import TEXT
-from core.model import GIGachaModel
+from core.modelv2 import GenshinImpactGachaModel
 from ui.utils import set_titlebar_darkmode, cmap
 
 from .CountSpinbox import CountSpinbox
@@ -47,7 +47,7 @@ from .BooleanComboBox import BooleanComboBox
 
 
 class SimulationThread(QThread):
-    def __init__(self, model: GIGachaModel, pulls: int, parent: QObject = None):
+    def __init__(self, model: GenshinImpactGachaModel, pulls: int, parent: QObject = None):
         super().__init__(parent)
         self.model = model
         self.pulls = pulls
@@ -691,7 +691,7 @@ class SimulationWindow(QMainWindow):
 
         # Initialize the model if not already done
         if self.model is None:
-            self.model = GIGachaModel(
+            self.model = GenshinImpactGachaModel(
                 pt=pity, cr=cr, seed=seed, guaranteed=guaranteed)
 
         # Start the simulation thread (no sleep, runs at max speed)
