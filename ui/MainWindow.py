@@ -3,7 +3,6 @@ from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
-    QGroupBox,
     QLabel,
     QPushButton,
     QFileDialog,
@@ -29,6 +28,7 @@ from PyQt6.QtCharts import (
 from .CountSpinbox import CountSpinbox
 from .ErrorDialog import ErrorDialog
 from .SimulationDialog import SimulationWindow
+from .FrameBox import FrameBox
 from .utils import (
     set_titlebar_darkmode,
     left_aligned_layout,
@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
 
         # Inventory
         layout.addWidget(QLabel("<b>Pulls Calculator</b>"))
-        groupbox = QGroupBox()
+        groupbox = FrameBox()
         layout.addWidget(groupbox)
 
         groupbox_layout = QGridLayout()
@@ -140,7 +140,7 @@ class MainWindow(QMainWindow):
 
         # Display
 
-        groupbox = QGroupBox()
+        groupbox = FrameBox()
         layout.addWidget(groupbox)
 
         groupbox_layout = QGridLayout()

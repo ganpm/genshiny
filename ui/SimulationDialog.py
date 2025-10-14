@@ -2,7 +2,6 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QVBoxLayout,
     QHBoxLayout,
-    QGroupBox,
     QPushButton,
     QGridLayout,
     QLabel,
@@ -33,7 +32,9 @@ from PyQt6.QtCharts import (
     QBarCategoryAxis,
     QValueAxis,
 )
+
 from threading import Lock
+from timeit import default_timer as timer
 
 from core.config import CONFIG
 from core.assets import ASSETS
@@ -44,10 +45,13 @@ from ui.utils import set_titlebar_darkmode, cmap
 from .CountSpinbox import CountSpinbox
 from .Dropdown import Dropdown
 from .BooleanComboBox import BooleanComboBox
+from .FrameBox import FrameBox
 
 
 class SimulationThread(QThread):
+
     def __init__(self, model: GenshinImpactGachaModel, pulls: int, parent: QObject = None):
+
         super().__init__(parent)
         self.model = model
         self.pulls = pulls
@@ -60,6 +64,7 @@ class SimulationThread(QThread):
         self.lock = Lock()  # For thread-safe access to results
 
     def run(self):
+
         while self._running:
             new_featured_rolls, new_standard_rolls = self.model.batch_pull_count(self.pulls)
             with self.lock:
@@ -88,10 +93,12 @@ class SimulationThread(QThread):
                 self.simulation_count += 1
 
     def stop(self):
+
         self._running = False
 
     def get_current_results(self):
         """Thread-safe method to get current simulation results"""
+
         with self.lock:
             return (
                 self.featured_rolls.copy(),
@@ -103,7 +110,9 @@ class SimulationThread(QThread):
 
 
 class SimulationWindow(QMainWindow):
+
     def __init__(self, parent=None, pulls=600):
+
         super().__init__(parent)
         set_titlebar_darkmode(self)
         self.setWindowTitle(TEXT.SIMULATE)
@@ -138,6 +147,7 @@ class SimulationWindow(QMainWindow):
         self.initUI(pulls)
 
     def initUI(self, pulls):
+
         central_widget = QWidget()
 
         layout = QHBoxLayout()
@@ -149,7 +159,7 @@ class SimulationWindow(QMainWindow):
         title_label = QLabel("<b>Pull Simulator</b>")
         top_section_layout.addWidget(title_label)
 
-        param_groupbox = QGroupBox()
+        param_groupbox = FrameBox()
         param_layout = QGridLayout()
 
         # Pulls
@@ -183,8 +193,9 @@ class SimulationWindow(QMainWindow):
 
         param_groupbox.setLayout(param_layout)
         top_section_layout.addWidget(param_groupbox)
+        layout.addLayout(top_section_layout)
 
-        sim_settings_groupbox = QGroupBox()
+        sim_settings_groupbox = FrameBox()
         sim_settings_layout = QGridLayout()
 
         # Simulation Length
@@ -213,15 +224,11 @@ class SimulationWindow(QMainWindow):
         sim_settings_groupbox.setLayout(sim_settings_layout)
         top_section_layout.addWidget(sim_settings_groupbox)
 
-        layout.addLayout(top_section_layout)
-
-        button_box = QVBoxLayout()
-
         # Progress Bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.progress_bar.setFormat("%v / %m  (%p%)")
-        button_box.addWidget(self.progress_bar)
+        top_section_layout.addWidget(self.progress_bar)
 
         # Link progress bar range to simulation length
         self.sim_length.valueChanged.connect(
@@ -229,23 +236,39 @@ class SimulationWindow(QMainWindow):
         )
         self.progress_bar.setRange(0, self.sim_length.value())
 
-        self.run_button = QPushButton("Run Simulation")
+        # Simulation Control Buttons
+        button_box = QHBoxLayout()
+
+        self.run_button = QPushButton("Run")
         self.run_button.setFixedHeight(40)
         self.run_button.clicked.connect(self.start_simulation_thread)
         button_box.addWidget(self.run_button)
 
-        self.stop_button = QPushButton("Stop Simulation")
+        self.stop_button = QPushButton("Stop")
         self.stop_button.setFixedHeight(40)
         self.stop_button.clicked.connect(self.stop_simulation_thread)
         self.stop_button.setEnabled(False)
         button_box.addWidget(self.stop_button)
 
-        self.reset_button = QPushButton("Reset Simulation")
+        self.reset_button = QPushButton("Reset")
         self.reset_button.setFixedHeight(40)
         self.reset_button.clicked.connect(self.reset_simulation)
         button_box.addWidget(self.reset_button)
 
         top_section_layout.addLayout(button_box)
+
+        # Info box
+        info_box_frame = FrameBox()
+        info_box_layout = QVBoxLayout()
+        info_box_frame.setLayout(info_box_layout)
+
+        self.info_box = QLabel("")
+        self.info_box.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
+        self.info_box.setWordWrap(True)
+
+        info_box_layout.addWidget(self.info_box)
+        top_section_layout.addWidget(info_box_frame)
+
         top_section_layout.addStretch(1)
 
         # Create tab widget
@@ -637,10 +660,6 @@ class SimulationWindow(QMainWindow):
         joint_layout = QVBoxLayout()
         self.joint_table = QTableWidget()
         self.joint_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.joint_table.setRowCount(1)
-        self.joint_table.setColumnCount(1)
-        self.joint_table.setHorizontalHeaderLabels(["Standard"])
-        self.joint_table.setVerticalHeaderLabels(["Featured"])
         self.joint_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.joint_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
@@ -650,12 +669,11 @@ class SimulationWindow(QMainWindow):
         # Add tab widget to main layout
         layout.addWidget(self.tab_widget, stretch=1)
 
-        # layout.addStretch(1)
-
         # Set default tab to "Exact"
         self.tab_widget.setCurrentIndex(0)
 
     def start_simulation_thread(self):
+
         # Get the parameters
         pulls = self.pulls.value()
         pity = self.pity.value()
@@ -689,10 +707,14 @@ class SimulationWindow(QMainWindow):
         self.reset_button.setEnabled(False)
         self.stop_button.setEnabled(True)
 
-        # Initialize the model if not already done
-        if self.model is None:
-            self.model = GenshinImpactGachaModel(
-                pt=pity, cr=cr, seed=seed, guaranteed=guaranteed)
+        # Initialize the model
+        self.model = GenshinImpactGachaModel(
+            pt=pity, cr=cr, seed=seed, guaranteed=guaranteed)
+
+        # Record the start time
+        self.sim_start_time = timer()
+
+        self.info_box.setText("Simulation running . . .")
 
         # Start the simulation thread (no sleep, runs at max speed)
         self.sim_thread = SimulationThread(self.model, pulls)
@@ -703,8 +725,14 @@ class SimulationWindow(QMainWindow):
         self.update_timer.start()
 
     def stop_simulation_thread(self):
+
         # Stop the UI update timer
         self.update_timer.stop()
+
+        # Record the end time
+        self.sim_end_time = timer()
+
+        self.display_elapsed_time(self.sim_end_time - self.sim_start_time)
 
         # Stop the simulation thread if it's running
         if self.sim_thread and self.sim_thread.isRunning():
@@ -716,7 +744,19 @@ class SimulationWindow(QMainWindow):
         self.run_button.setEnabled(True)
         self.stop_button.setEnabled(False)
 
+    def display_elapsed_time(self, seconds: float):
+        """Display elapsed time in the info box"""
+        m = seconds // 60
+        s = seconds % 60
+        ms = int((seconds - int(seconds)) * 1000)
+        fmt = ""
+        if m > 0:
+            fmt += f"{int(m)}m "
+        fmt += f"{int(s)}.{ms:03d}s"
+        self.info_box.setText(f"Simulation completed in {fmt}")
+
     def reset_simulation(self):
+
         # Stop any running simulation first
         if self.update_timer.isActive():
             self.update_timer.stop()
@@ -738,6 +778,9 @@ class SimulationWindow(QMainWindow):
         self.seed.setEnabled(True)
         self.sim_length.setEnabled(True)
         self.animation_interval.setEnabled(True)
+
+        # Reset info box
+        self.info_box.setText("")
 
         # Reset the model and charts
         self.model = None
@@ -780,10 +823,8 @@ class SimulationWindow(QMainWindow):
 
         # Reset joint table
         self.joint_table.clear()
-        self.joint_table.setRowCount(1)
-        self.joint_table.setColumnCount(1)
-        self.joint_table.setHorizontalHeaderLabels(["Standard"])
-        self.joint_table.setVerticalHeaderLabels(["Featured"])
+        self.joint_table.setRowCount(0)
+        self.joint_table.setColumnCount(0)
 
         # Force chart redraw
         self.exact_featured_chart_view.repaint()
@@ -798,6 +839,7 @@ class SimulationWindow(QMainWindow):
 
     def update_ui_from_simulation(self):
         """Called by timer to update UI with latest simulation results"""
+
         if not self.sim_thread or not self.sim_thread.isRunning():
             return
 
@@ -826,15 +868,16 @@ class SimulationWindow(QMainWindow):
 
     def update_charts(self):
 
-        total_simulations = sum(self.featured_rolls.values())
-
         # Update Featured Chart (Exact)
 
-        sorted_keys = sorted(self.featured_rolls.keys())
-        featured_x_values = [str(key) for key in sorted_keys]
+        total_simulations = sum(self.featured_rolls.values())
+        min_key = min(self.featured_rolls.keys())
+        max_key = max(self.featured_rolls.keys())
+        featured_keys = list(range(min_key, max_key + 1))
+        featured_x_values = [str(key) for key in featured_keys]
         featured_y_values = [
-            round((self.featured_rolls[key] / total_simulations) * 100, 2)
-            for key in sorted_keys
+            round((self.featured_rolls.get(key, 0) / total_simulations) * 100, 2)
+            for key in featured_keys
         ]
 
         changed = False
@@ -855,11 +898,13 @@ class SimulationWindow(QMainWindow):
         # Update Standard Chart (Exact)
 
         total_simulations = sum(self.standard_rolls.values())
-        sorted_keys = sorted(self.standard_rolls.keys())
-        standard_x_values = [str(key) for key in sorted_keys]
+        min_key = min(self.standard_rolls.keys())
+        max_key = max(self.standard_rolls.keys())
+        standard_keys = list(range(min_key, max_key + 1))
+        standard_x_values = [str(key) for key in standard_keys]
         standard_y_values = [
-            round((self.standard_rolls[key] / total_simulations) * 100, 2)
-            for key in sorted_keys
+            round((self.standard_rolls.get(key, 0) / total_simulations) * 100, 2)
+            for key in standard_keys
         ]
 
         changed = False
@@ -880,11 +925,13 @@ class SimulationWindow(QMainWindow):
         # Update Combined Chart (Exact)
 
         total_simulations = sum(self.total_rolls.values())
-        sorted_keys = sorted(self.total_rolls.keys())
-        combined_x_values = [str(key) for key in sorted_keys]
+        min_key = min(self.total_rolls.keys())
+        max_key = max(self.total_rolls.keys())
+        combined_keys = list(range(min_key, max_key + 1))
+        combined_x_values = [str(key) for key in combined_keys]
         combined_y_values = [
-            round((self.total_rolls[key] / total_simulations) * 100, 2)
-            for key in sorted_keys
+            round((self.total_rolls.get(key, 0) / total_simulations) * 100, 2)
+            for key in combined_keys
         ]
 
         changed = False
@@ -901,16 +948,13 @@ class SimulationWindow(QMainWindow):
             for x in combined_x_values[len(self.exact_combined_axis_x.categories()):]:
                 self.exact_combined_axis_x.append(x)
 
-        # Update At Most Charts (CDF)
-        # Featured At Most
-        sorted_keys = sorted(self.featured_rolls.keys())
+        # Update Featured Chart (At Most)
+
         featured_cdf_values = []
         cumulative_prob = 0.0
-        for key in sorted_keys:
-            cumulative_prob += (self.featured_rolls[key] / total_simulations) * 100
+        for key in featured_keys:
+            cumulative_prob += (self.featured_rolls.get(key, 0) / total_simulations) * 100
             featured_cdf_values.append(round(cumulative_prob, 2))
-
-        featured_x_values = [str(key) for key in sorted_keys]
 
         changed = False
         while self.at_most_featured_bar_set.count() < len(featured_cdf_values):
@@ -926,15 +970,13 @@ class SimulationWindow(QMainWindow):
             for x in featured_x_values[len(self.at_most_featured_axis_x.categories()):]:
                 self.at_most_featured_axis_x.append(x)
 
-        # Standard At Most
-        sorted_keys = sorted(self.standard_rolls.keys())
+        # Update Standard Chart (At Most)
+
         standard_cdf_values = []
         cumulative_prob = 0.0
-        for key in sorted_keys:
-            cumulative_prob += (self.standard_rolls[key] / total_simulations) * 100
+        for key in standard_keys:
+            cumulative_prob += (self.standard_rolls.get(key, 0) / total_simulations) * 100
             standard_cdf_values.append(round(cumulative_prob, 2))
-
-        standard_x_values = [str(key) for key in sorted_keys]
 
         changed = False
         while self.at_most_standard_bar_set.count() < len(standard_cdf_values):
@@ -950,15 +992,13 @@ class SimulationWindow(QMainWindow):
             for x in standard_x_values[len(self.at_most_standard_axis_x.categories()):]:
                 self.at_most_standard_axis_x.append(x)
 
-        # Combined At Most
-        sorted_keys = sorted(self.total_rolls.keys())
+        # Update Combined Chart (At Most)
+
         combined_cdf_values = []
         cumulative_prob = 0.0
-        for key in sorted_keys:
-            cumulative_prob += (self.total_rolls[key] / total_simulations) * 100
+        for key in combined_keys:
+            cumulative_prob += (self.total_rolls.get(key, 0) / total_simulations) * 100
             combined_cdf_values.append(round(cumulative_prob, 2))
-
-        combined_x_values = [str(key) for key in sorted_keys]
 
         changed = False
         while self.at_most_combined_bar_set.count() < len(combined_cdf_values):
@@ -974,17 +1014,14 @@ class SimulationWindow(QMainWindow):
             for x in combined_x_values[len(self.at_most_combined_axis_x.categories()):]:
                 self.at_most_combined_axis_x.append(x)
 
-        # Update At Least Charts (1 - CDF)
-        # Featured At Least
-        sorted_keys = sorted(self.featured_rolls.keys())
+        # Update Featured Chart (At Least)
+
         featured_at_least_values = []
         total_prob = 100.0
-        for i, key in enumerate(sorted_keys):
+        for i, key in enumerate(featured_keys):
             if i > 0:
-                total_prob -= (self.featured_rolls[sorted_keys[i-1]] / total_simulations) * 100
+                total_prob -= (self.featured_rolls.get(featured_keys[i-1], 0) / total_simulations) * 100
             featured_at_least_values.append(round(total_prob, 2))
-
-        featured_x_values = [str(key) for key in sorted_keys]
 
         changed = False
         while self.at_least_featured_bar_set.count() < len(featured_at_least_values):
@@ -1000,16 +1037,14 @@ class SimulationWindow(QMainWindow):
             for x in featured_x_values[len(self.at_least_featured_axis_x.categories()):]:
                 self.at_least_featured_axis_x.append(x)
 
-        # Standard At Least
-        sorted_keys = sorted(self.standard_rolls.keys())
+        # Update Standard Chart (At Least)
+
         standard_at_least_values = []
         total_prob = 100.0
-        for i, key in enumerate(sorted_keys):
+        for i, key in enumerate(standard_keys):
             if i > 0:
-                total_prob -= (self.standard_rolls[sorted_keys[i-1]] / total_simulations) * 100
+                total_prob -= (self.standard_rolls.get(standard_keys[i-1], 0) / total_simulations) * 100
             standard_at_least_values.append(round(total_prob, 2))
-
-        standard_x_values = [str(key) for key in sorted_keys]
 
         changed = False
         while self.at_least_standard_bar_set.count() < len(standard_at_least_values):
@@ -1025,16 +1060,14 @@ class SimulationWindow(QMainWindow):
             for x in standard_x_values[len(self.at_least_standard_axis_x.categories()):]:
                 self.at_least_standard_axis_x.append(x)
 
-        # Combined At Least
-        sorted_keys = sorted(self.total_rolls.keys())
+        # Update Combined Chart (At Least)
+
         combined_at_least_values = []
         total_prob = 100.0
-        for i, key in enumerate(sorted_keys):
+        for i, key in enumerate(combined_keys):
             if i > 0:
-                total_prob -= (self.total_rolls[sorted_keys[i-1]] / total_simulations) * 100
+                total_prob -= (self.total_rolls.get(combined_keys[i-1], 0) / total_simulations) * 100
             combined_at_least_values.append(round(total_prob, 2))
-
-        combined_x_values = [str(key) for key in sorted_keys]
 
         changed = False
         while self.at_least_combined_bar_set.count() < len(combined_at_least_values):
@@ -1063,18 +1096,17 @@ class SimulationWindow(QMainWindow):
 
     def update_joint_table(self):
         """Update the joint probability table as a 2D heatmap."""
+
         joint = self.joint_rolls
         if not joint:
             self.joint_table.clear()
-            self.joint_table.setRowCount(1)
-            self.joint_table.setColumnCount(1)
-            self.joint_table.setHorizontalHeaderLabels(["Standard 5★"])
-            self.joint_table.setVerticalHeaderLabels(["Featured 5★"])
+            self.joint_table.setRowCount(0)
+            self.joint_table.setColumnCount(0)
             return
 
         # Get sorted unique values for featured and standard
-        featured_keys = sorted(set(k[0] for k in joint.keys()))
-        standard_keys = sorted(set(k[1] for k in joint.keys()))
+        featured_keys = list(range(min(self.featured_rolls.keys()), max(self.featured_rolls.keys()) + 1))
+        standard_keys = list(range(min(self.standard_rolls.keys()), max(self.standard_rolls.keys()) + 1))
         total = sum(joint.values())
 
         self.joint_table.setRowCount(len(featured_keys))
@@ -1086,20 +1118,16 @@ class SimulationWindow(QMainWindow):
         for i, f in enumerate(featured_keys):
             for j, s in enumerate(standard_keys):
                 prob = (joint.get((f, s), 0) / total * 100) if total > 0 else 0
-                item = QTableWidgetItem(f"{prob:>8.4f}%")
+                text = f"{prob:>8.4f}%" if prob > 0 else ""
+                item = QTableWidgetItem(text)
                 # Make the text larger
                 font = item.font()
                 font.setPointSize(11)
                 item.setFont(font)
                 # Make item unselectable
                 item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                # Center align the text
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
-                if prob <= 0:
-                    item.setText("")
-                # Color code based on probability (sqrt scale + min intensity)
-                # color_intensity = int(30 + 215 * (prob / 100) ** 0.5)
-                # color = QColor(0, color_intensity, color_intensity)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+                # Color code based on probability
                 color = QColor(*cmap(prob / 100))
                 item.setBackground(color)
                 self.joint_table.setItem(i, j, item)
