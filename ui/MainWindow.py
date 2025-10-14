@@ -38,7 +38,6 @@ from core.config import CONFIG
 from core.text import TEXT
 from core.assets import ASSETS
 
-import os
 import json
 
 
@@ -263,12 +262,9 @@ class MainWindow(QMainWindow):
     def load_data(self):
         """Open a file dialog to load data from a JSON file."""
 
-        current_dir = os.getcwd()
-        starting_dir = os.path.join(current_dir, CONFIG.SAVE_PATH)
-        # Check if directory exists
-        if not os.path.exists(starting_dir):
-            # Create the directory
-            os.makedirs(starting_dir)
+        if not CONFIG.SAVE_PATH.exists():
+            CONFIG.SAVE_PATH.mkdir(parents=True, exist_ok=True)
+        starting_dir = str(CONFIG.SAVE_PATH)
         open_dir, _ = QFileDialog.getOpenFileName(
             self, "Open File", starting_dir, "JSON Files (*.json)")
         if not open_dir:
@@ -287,12 +283,9 @@ class MainWindow(QMainWindow):
     def save_data(self):
         """Open a file dialog to save data to a JSON file."""
 
-        current_dir = os.getcwd()
-        starting_dir = os.path.join(current_dir, CONFIG.SAVE_PATH)
-        # Check if directory exists
-        if not os.path.exists(starting_dir):
-            # Create the directory
-            os.makedirs(starting_dir)
+        if not CONFIG.SAVE_PATH.exists():
+            CONFIG.SAVE_PATH.mkdir(parents=True, exist_ok=True)
+        starting_dir = str(CONFIG.SAVE_PATH)
         save_dir, _ = QFileDialog.getSaveFileName(
             self, "Save File", starting_dir, "JSON Files (*.json)")
         if not save_dir:
@@ -332,15 +325,13 @@ class MainWindow(QMainWindow):
     def load_from_last_save(self):
         """Load the last save file."""
 
-        # If dir does not exist, create it
-        save_path = os.path.join(os.getcwd(), CONFIG.SAVE_PATH)
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
+        if not CONFIG.SAVE_PATH.exists():
+            CONFIG.SAVE_PATH.mkdir(parents=True, exist_ok=True)
 
-        save_file = os.path.join(os.getcwd(), CONFIG.SAVE_PATH, 'last_save.json')
+        save_file = CONFIG.LAST_SAVE_FILE
 
         # If file does not exist, create it
-        if not os.path.exists(save_file):
+        if not save_file.exists():
             self.save_to_last_save()
             return
 
@@ -358,7 +349,7 @@ class MainWindow(QMainWindow):
     def save_to_last_save(self):
         """Save the current data to the last save file."""
 
-        save_file = os.path.join(os.getcwd(), CONFIG.SAVE_PATH, 'last_save.json')
+        save_file = CONFIG.LAST_SAVE_FILE
         data = self.get_data()
         with open(save_file, 'w') as file:
             json.dump(data, file, indent=4)

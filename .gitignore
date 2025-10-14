@@ -3,7 +3,7 @@ __pycache__
 /misc
 *.in
 /save
-/build
-/dist
-*.spec
 *.exe
+*.build
+*.dist
+*.onefile-build

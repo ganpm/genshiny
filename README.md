@@ -27,10 +27,11 @@ pip install pyqtdarktheme==2.1.0 --ignore-requires-python
 Reference:
 https://github.com/5yutan5/PyQtDarkTheme/issues/252
 
-# Build Command
+## Build Command
 
-To build the EXE using pyinstaller, run the following command in the terminal:
+The executable is built using Nuitka.
 
+### Windows
 ```sh
-pyinstaller .\main.py --name Geshiny --distpath . --onefile --noconsole --add-data "assets;assets" --icon=assets/icon.ico
+python -m nuitka --onefile --enable-plugins=pyqt6 --include-data-dir="assets=assets" --windows-icon-from-ico=assets/icon.ico --windows-console-mode=disable --product-name=Genshiny --product-version=2025.10.14.0 Genshiny.py
 ```

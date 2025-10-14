@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+
 from core.containers import WidgetGeometry
 
 
@@ -15,14 +18,19 @@ class CONFIG:
     ICON_WIDTH = 30
     ICON_SIZE = (ICON_WIDTH, ICON_HEIGHT)
 
-    SAVE_PATH = 'save'
+    INSIDE_PATH = Path(__file__).parent.parent
+    ASSETS_PATH = INSIDE_PATH / "assets"
 
-    FONT_FAMILY = 'Segoe UI'
+    OUTSIDE_PATH = Path(sys.argv[0]).parent
+    SAVE_PATH = OUTSIDE_PATH / "save"
+    LAST_SAVE_FILE = SAVE_PATH / "last_save.json"
+
+    FONT_FAMILY = "Segoe UI"
     FONT_SIZE = 12
 
-    LOAD_SHORTCUT = 'Ctrl+O'
-    SAVE_SHORTCUT = 'Ctrl+S'
-    NEW_SHORTCUT = 'Ctrl+N'
+    LOAD_SHORTCUT = "Ctrl+O"
+    SAVE_SHORTCUT = "Ctrl+S"
+    NEW_SHORTCUT = "Ctrl+N"
 
     SIM_WIDTH = 1080
     SIM_HEIGHT = 860

@@ -1,21 +1,15 @@
-import sys
-import os
+from core.config import CONFIG
 
 
-def resource_path(relative_path):
-    """Get absolute path to resource"""
+def resource_path(filename: str) -> str:
 
-    # Check if running in a PyInstaller bundle
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
-
-    # Otherwise, return the path relative to the current working directory
-    return os.path.join(os.getcwd(), relative_path)
+    return str(CONFIG.ASSETS_PATH / filename)
 
 
 class ASSETS:
-    PRIMOGEMS_ICON = resource_path("assets/primogem.webp")
-    FATES_ICON = resource_path("assets/fate.webp")
-    STARGLITTER_ICON = resource_path("assets/starglitter.webp")
-    CRYSTAL_ICON = resource_path("assets/crystal.webp")
-    APP_ICON = resource_path("assets/icon.png")
+
+    APP_ICON = resource_path("icon.png")
+    PRIMOGEMS_ICON = resource_path("primogem.webp")
+    FATES_ICON = resource_path("fate.webp")
+    STARGLITTER_ICON = resource_path("starglitter.webp")
+    CRYSTAL_ICON = resource_path("crystal.webp")
