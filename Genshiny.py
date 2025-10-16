@@ -1,3 +1,20 @@
+# Compilation Settings for Nuitka
+#
+# nuitka-project-if: {OS} in ("Windows", "Linux", "Darwin", "FreeBSD"):
+#    nuitka-project: --mode=onefile
+# nuitka-project-else:
+#    nuitka-project: --mode=standalone
+#
+# nuitka-project-if: {OS} in ("Windows"):
+#    nuitka-project: --windows-icon-from-ico={MAIN_DIRECTORY}/assets/icon.ico
+#    nuitka-project: --windows-console-mode=disable
+#
+# nuitka-project: --enable-plugins=pyqt6
+# nuitka-project: --include-data-dir={MAIN_DIRECTORY}/assets=assets
+#
+# nuitka-project: --product-name=Genshiny
+# nuitka-project: --product-version=2025.10.16.0
+
 import sys
 
 from PyQt6.QtWidgets import QApplication

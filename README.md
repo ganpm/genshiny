@@ -1,37 +1,83 @@
 # Genshiny
+![Python](https://img.shields.io/badge/python-3.12.2-blue.svg)
 
-Genshiny is a small desktop application for managing and analyzing your pulls in Genshin Impact.
+A desktop application for managing and analyzing your pulls in Genshin Impact.
 
-# Features
+## 📋 Overview
 
-- Track your Primogems, Intertwined Fates, Masterless Starglitter, and Genesis Crystals offline.
-- Simple, user-friendly interface.
-- Save and load your currency data.
-- Calculate how many pulls you currently have.
-- NEW: Count how many guaranteed 5 stars you can get based on your total pulls.
+Genshiny helps players track their gacha resources and simulate pull outcomes using the best known approximation of the Genshin Impact gacha model. The application provides offline data management with a clean, user-friendly interface.
 
-# Requirements
+## ✨ Features
 
-Only available in Windows OS (for now). The executable itself has no requirements to run. Its all in one file.
+- **Resource Tracking**: Monitor Primogems, Intertwined Fates, Masterless Starglitter, and Genesis Crystals
+- **Offline Storage**: Save and load your currency data locally, no online connection needed
+- **Pull Calculator**: Calculate your total available pulls from your resources
+- **Guarantee Counter**: Determine how many guaranteed 5-star characters you can obtain
+- **Gacha Simulation**: Simulate pulls using an approximate gacha model including the effect of Capturing Radiance
+- **Dark Theme**: Modern UI with dark theme support
 
-The source code is made using Python 3.12.2, PyQt6, and PyQt6-Charts. The EXE is built using pyinstaller.
+## 🛠️ Prerequisites
 
-## Notes
+- Python 3.12.2
 
-If there is an error installing `pyqtdarktheme` through pip install, or if `pyqtdarktheme.setup_theme()` does not work, or `pyqtdarktheme` version is `0.1.7` instead of `2.1.0`, install it manually using the following command:
+## 📦 Installation
 
-```
-pip install pyqtdarktheme==2.1.0 --ignore-requires-python
-```
+1. **Clone the repository**
 
-Reference:
-https://github.com/5yutan5/PyQtDarkTheme/issues/252
+2. **Create and activate virtual environment**
+   
+   Windows
+   ```sh
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
 
-## Build Command
+   Linux
+   ```sh
+   python -m venv .venv
+   source .venv/bin/activate
+   ```
 
-The executable is built using Nuitka.
+3. **Install dependencies**
+   ```sh
+   pip install -r requirements.txt
+   pip install pyqtdarktheme==2.1.0 --ignore-requires-python
+   ```
 
-### Windows
+   > **Note**: The second command is required due to a known issue with `pyqtdarktheme` installation. See [PyQtDarkTheme GitHub Issue #252](https://github.com/5yutan5/PyQtDarkTheme/issues/252) for details.
+
+## 🚀 Usage
+
+Run the application:
 ```sh
-python -m nuitka --onefile --enable-plugins=pyqt6 --include-data-dir="assets=assets" --windows-icon-from-ico=assets/icon.ico --windows-console-mode=disable --product-name=Genshiny --product-version=2025.10.14.0 Genshiny.py
+python Genshiny.py
 ```
+
+## 🔨 Building Executable
+
+To create a standalone executable:
+
+```sh
+python -m nuitka Genshiny.py
+```
+
+The build configuration is already specified in the `Genshiny.py` file.
+
+## 📚 Technical References
+
+The gacha simulation models are based on the following:
+
+- **Wish Model**: [Statistical model for Genshin Impact's droprates | HoYoLAB](https://www.hoyolab.com/article/497840)
+- **Capturing Radiance Model**: [Understanding Genshin Impact’s Capturing Radiance: In-Depth Analysis of 4 Million Pulls : r/Genshin_Impact](https://www.reddit.com/r/Genshin_Impact/comments/1hd1sqa/understanding_genshin_impacts_capturing_radiance/)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit issues and pull requests.
+
+## 📄 License
+
+[Add your license information here]
+
+## ⚠️ Disclaimer
+
+This application is not affiliated with HoYoverse. Genshin Impact is a trademark of HoYoverse.

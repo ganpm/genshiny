@@ -37,7 +37,7 @@ class GenshinImpactGachaModel:
         self.counter5 = pt
         self.counter4 = 0
 
-    def pull(self, cr=True) -> PullResult:
+    def pull(self) -> PullResult:
         """Gacha pull without Capturing Radiance."""
 
         x = self.rng.random()
@@ -48,17 +48,13 @@ class GenshinImpactGachaModel:
         if x < prob5:
             self.counter5 = 1
             self.counter4 += 1
-            if self.g or self.rng.random() < 0.5:
+            if self.g:
                 self.g = False
                 return PullResult.Featured_5_Star
             else:
-                if cr:
-                    pull = self.cr_model.cr_pull()
-                    self.g = pull == PullResult.Standard_5_Star
-                    return pull
-                else:
-                    self.g = True
-                    return PullResult.Standard_5_Star
+                pull = self.cr_model.cr_pull()
+                self.g = pull == PullResult.Standard_5_Star
+                return pull
         elif x < prob5 + prob4:
             self.counter5 += 1
             self.counter4 = 1
@@ -90,7 +86,7 @@ class CapturingRadianceModel:
             self,
             rng: Random,
             cr: int = 0,
-            version: int = 1,
+            version: int = 2,
             ) -> None:
 
         self.cr = cr
@@ -100,8 +96,6 @@ class CapturingRadianceModel:
     def cr_pull(self):
 
         match self.version:
-            case 4:
-                return self.cr_pull_v4()
             case 3:
                 return self.cr_pull_v3()
             case 2:
@@ -113,44 +107,61 @@ class CapturingRadianceModel:
 
     def cr_pull_v0(self):
         """
-        Always standard. Effectively disables the CR system.
+        Always 50/50. This is the system before CR was introduced.
+        Using this mode effectively disables the CR system.
         """
+
+        if self.rng.random() < 0.5:
+            return PullResult.Featured_5_Star
 
         return PullResult.Standard_5_Star
 
     def cr_pull_v1(self):
         """
-        2 standard states followed by a 50/50 on the 3rd state.
-        and a guarantee on the 4th state. (4 states total, currently
-        the best representation of the in-game system)
+        10% chance to trigger CR and win if you lost the 50/50.
+        This is what people initially thought the system was.
         """
 
+        if self.rng.random() < 0.5:
+            return PullResult.Featured_5_Star
+        else:
+            if self.rng.random() < 0.1:
+                return PullResult.Featured_5_Star
+            else:
+                return PullResult.Standard_5_Star
+
+    def cr_pull_v2(self):
+        """
+        The current best representation of the in-game system. See README.
+        """
+
+        # 4 states total.
+        # cr = 0:
+        #     50% Featured, cr = 0
+        #     50% Standard, cr = 1
+        # cr = 1:
+        #     50% Featured, cr = 0
+        #     50% Standard, cr = 2
+        # cr = 2:
+        #     p Featured, cr = 1
+        #     1-p Standard, cr = 3
+        # cr = 3:
+        #     100% Featured, cr = 1
+        #
+        # The value of p here is the combined probability of triggering
+        # CR and winning 50/50, since this model currently does not
+        # distinguish between the two. According to analysis online,
+        # this value is said to be between 52% and 60%.
+        # Empirical analysis suggests this value to be 6/11 or ~54.55%.
+
+        p = 0.5454545454545454
         if self.cr == 0:
-            self.cr = 1
-            return PullResult.Standard_5_Star
-        elif self.cr == 1:
-            self.cr = 2
-            return PullResult.Standard_5_Star
-        elif self.cr == 2:
             if self.rng.random() < 0.5:
                 self.cr = 0
                 return PullResult.Featured_5_Star
             else:
-                self.cr = 3
+                self.cr = 1
                 return PullResult.Standard_5_Star
-        else:
-            self.cr = 0
-            return PullResult.Featured_5_Star
-
-    def cr_pull_v2(self):
-        """
-        1 standard state followed by a 50/50 on the 2nd state.
-        and a guarantee on the 3rd state. (3 states total)
-        """
-
-        if self.cr == 0:
-            self.cr = 1
-            return PullResult.Standard_5_Star
         elif self.cr == 1:
             if self.rng.random() < 0.5:
                 self.cr = 0
@@ -158,39 +169,21 @@ class CapturingRadianceModel:
             else:
                 self.cr = 2
                 return PullResult.Standard_5_Star
+        elif self.cr == 2:
+            if self.rng.random() < p:
+                self.cr = 1
+                return PullResult.Featured_5_Star
+            else:
+                self.cr = 3
+                return PullResult.Standard_5_Star
         else:
-            self.cr = 0
+            self.cr = 1
             return PullResult.Featured_5_Star
 
     def cr_pull_v3(self):
         """
-        4 states total. First one is standard, then 25/75, then 50/50, then guaranteed.
-        """
-
-        if self.cr == 0:
-            self.cr = 1
-            return PullResult.Standard_5_Star
-        elif self.cr == 1:
-            if self.rng.random() < 0.25:
-                self.cr = 0
-                return PullResult.Featured_5_Star
-            else:
-                self.cr = 2
-                return PullResult.Standard_5_Star
-        elif self.cr == 2:
-            if self.rng.random() < 0.50:
-                self.cr = 0
-                return PullResult.Featured_5_Star
-            else:
-                self.cr = 3
-                return PullResult.Standard_5_Star
-        else:
-            self.cr = 0
-            return PullResult.Featured_5_Star
-
-    def cr_pull_v4(self):
-        """
-        4 states total. 25/75, then 50/50, then 75/25, then guaranteed.
+        4 states total. 25/75, then 50/50, then 75/25, then 100/0.
+        Moves up a state on losing, down a state on winning.
         """
 
         if self.cr == 0:
@@ -209,11 +202,11 @@ class CapturingRadianceModel:
                 return PullResult.Standard_5_Star
         elif self.cr == 2:
             if self.rng.random() < 0.75:
-                self.cr = 0
+                self.cr = 1
                 return PullResult.Featured_5_Star
             else:
                 self.cr = 3
                 return PullResult.Standard_5_Star
         else:
-            self.cr = 0
+            self.cr = 2
             return PullResult.Featured_5_Star
