@@ -11,9 +11,6 @@
 #
 # nuitka-project: --enable-plugins=pyqt6
 # nuitka-project: --include-data-dir={MAIN_DIRECTORY}/assets=assets
-#
-# nuitka-project: --product-name=Genshiny
-# nuitka-project: --product-version=2025.10.16.0
 
 import sys
 
