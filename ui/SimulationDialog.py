@@ -120,14 +120,14 @@ class SimulationWindow(QMainWindow):
 
         # Center the dialog on the screen
         # Disable resizing
-        self.setFixedSize(*CONFIG.SIM_SIZE)
+        self.setFixedSize(*CONFIG.SIMULATION.SIZE)
         screen = self.screen()
         screen_geometry = screen.geometry()
         self.setGeometry(
-            screen_geometry.x() + (screen_geometry.width() - CONFIG.SIM_WIDTH) // 2,
-            screen_geometry.y() + (screen_geometry.height() - CONFIG.SIM_HEIGHT) // 2,
-            CONFIG.SIM_WIDTH,
-            CONFIG.SIM_HEIGHT)
+            screen_geometry.x() + (screen_geometry.width() - CONFIG.SIMULATION.SIZE.WIDTH) // 2,
+            screen_geometry.y() + (screen_geometry.height() - CONFIG.SIMULATION.SIZE.HEIGHT) // 2,
+            CONFIG.SIMULATION.SIZE.WIDTH,
+            CONFIG.SIMULATION.SIZE.HEIGHT)
         # Disable maximize button
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
@@ -156,7 +156,10 @@ class SimulationWindow(QMainWindow):
 
         top_section_layout = QVBoxLayout()
 
-        title_label = QLabel("<b>Pull Simulator</b>")
+        title_label = QLabel(TEXT.PULL_SIMULATOR)
+        title_label_font = title_label.font()
+        title_label_font.setBold(True)
+        title_label.setFont(title_label_font)
         top_section_layout.addWidget(title_label)
 
         param_groupbox = FrameBox()
@@ -165,30 +168,24 @@ class SimulationWindow(QMainWindow):
         # Pulls
         self.pulls = CountSpinbox()
         self.pulls.setValue(pulls)
-        param_layout.addWidget(QLabel("Pulls"), 0, 0)
+        param_layout.addWidget(QLabel(TEXT.PULLS), 0, 0)
         param_layout.addWidget(self.pulls, 0, 1)
 
         # Pity
         self.pity = CountSpinbox()
         self.pity.setRange(0, 100)
         self.pity.setValue(0)
-        param_layout.addWidget(QLabel("Current Pity"), 1, 0)
+        param_layout.addWidget(QLabel(TEXT.CURRENT_PITY), 1, 0)
         param_layout.addWidget(self.pity, 1, 1)
 
         # Guaranteed
         self.guaranteed = BooleanComboBox(current_index=0, width=120)
-        param_layout.addWidget(QLabel("Guaranteed 50/50"), 2, 0)
+        param_layout.addWidget(QLabel(TEXT.GUARANTEED_5050), 2, 0)
         param_layout.addWidget(self.guaranteed, 2, 1)
 
         # Capturing Radiance State
-        cr_state = [
-            "1 (0% CR)",
-            "2 (0% CR)",
-            "3 (50% CR)",
-            "4 (100% CR)",
-        ]
-        self.cr = Dropdown(options=cr_state, current_index=0, width=120)
-        param_layout.addWidget(QLabel("Capturing Radiance"), 3, 0)
+        self.cr = Dropdown(options=TEXT.CR_STATES, current_index=0, width=120)
+        param_layout.addWidget(QLabel(TEXT.CAPTURING_RADIANCE), 3, 0)
         param_layout.addWidget(self.cr, 3, 1)
 
         param_groupbox.setLayout(param_layout)
@@ -202,14 +199,14 @@ class SimulationWindow(QMainWindow):
         self.sim_length = CountSpinbox()
         self.sim_length.setRange(1000, 1000000)
         self.sim_length.setValue(100000)
-        sim_settings_layout.addWidget(QLabel("Simulation Length"), 0, 0)
+        sim_settings_layout.addWidget(QLabel(TEXT.SIMULATION_LENGTH), 0, 0)
         sim_settings_layout.addWidget(self.sim_length, 0, 1)
 
         # Seed
         self.seed = CountSpinbox()
         self.seed.setRange(-2147483648, 2147483647)
         self.seed.setValue(0)
-        sim_settings_layout.addWidget(QLabel("Seed"), 1, 0)
+        sim_settings_layout.addWidget(QLabel(TEXT.SEED), 1, 0)
         sim_settings_layout.addWidget(self.seed, 1, 1)
 
         # Animation Interval
@@ -217,8 +214,8 @@ class SimulationWindow(QMainWindow):
         self.animation_interval.setRange(100, 900)
         self.animation_interval.setValue(100)
         # Add a suffix label
-        self.animation_interval.setSuffix(" ms")
-        sim_settings_layout.addWidget(QLabel("Animation Interval"), 2, 0)
+        self.animation_interval.setSuffix(TEXT.ANIMATION_SUFFIX)
+        sim_settings_layout.addWidget(QLabel(TEXT.ANIMATION_INTERVAL), 2, 0)
         sim_settings_layout.addWidget(self.animation_interval, 2, 1)
 
         sim_settings_groupbox.setLayout(sim_settings_layout)
@@ -227,7 +224,7 @@ class SimulationWindow(QMainWindow):
         # Progress Bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
-        self.progress_bar.setFormat("%v / %m  (%p%)")
+        self.progress_bar.setFormat(TEXT.PROGRESS_BAR_FORMAT)
         top_section_layout.addWidget(self.progress_bar)
 
         # Link progress bar range to simulation length
@@ -239,18 +236,18 @@ class SimulationWindow(QMainWindow):
         # Simulation Control Buttons
         button_box = QHBoxLayout()
 
-        self.run_button = QPushButton("Run")
+        self.run_button = QPushButton(TEXT.RUN)
         self.run_button.setFixedHeight(40)
         self.run_button.clicked.connect(self.start_simulation_thread)
         button_box.addWidget(self.run_button)
 
-        self.stop_button = QPushButton("Stop")
+        self.stop_button = QPushButton(TEXT.STOP)
         self.stop_button.setFixedHeight(40)
         self.stop_button.clicked.connect(self.stop_simulation_thread)
         self.stop_button.setEnabled(False)
         button_box.addWidget(self.stop_button)
 
-        self.reset_button = QPushButton("Reset")
+        self.reset_button = QPushButton(TEXT.RESET)
         self.reset_button.setFixedHeight(40)
         self.reset_button.clicked.connect(self.reset_simulation)
         button_box.addWidget(self.reset_button)
@@ -262,7 +259,7 @@ class SimulationWindow(QMainWindow):
         info_box_layout = QVBoxLayout()
         info_box_frame.setLayout(info_box_layout)
 
-        self.info_box = QLabel("")
+        self.info_box = QLabel()
         self.info_box.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
         self.info_box.setWordWrap(True)
 
@@ -281,10 +278,10 @@ class SimulationWindow(QMainWindow):
         joint_tab = QWidget()
 
         # Add tabs to tab widget
-        self.tab_widget.addTab(exact_tab, "Exactly")
-        self.tab_widget.addTab(at_most_tab, "At Most")
-        self.tab_widget.addTab(at_least_tab, "At Least")
-        self.tab_widget.addTab(joint_tab, "Joint Probability Distribution")
+        self.tab_widget.addTab(exact_tab, TEXT.EXACTLY)
+        self.tab_widget.addTab(at_most_tab, TEXT.AT_MOST)
+        self.tab_widget.addTab(at_least_tab, TEXT.AT_LEAST)
+        self.tab_widget.addTab(joint_tab, TEXT.JOINTLY)
 
         # Set up "Exact" tab with charts
         exact_layout = QVBoxLayout()
@@ -303,7 +300,7 @@ class SimulationWindow(QMainWindow):
         self.exact_featured_chart.legend().setVisible(False)
         self.exact_featured_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
-        self.exact_featured_bar_set = QBarSet("Featured 5 Star")
+        self.exact_featured_bar_set = QBarSet(TEXT.FEATURED_5_STAR)
 
         exact_featured_bar_series = QBarSeries()
         exact_featured_bar_series.append(self.exact_featured_bar_set)
@@ -314,15 +311,15 @@ class SimulationWindow(QMainWindow):
         self.exact_featured_chart.addSeries(exact_featured_bar_series)
 
         self.exact_featured_axis_x = QBarCategoryAxis()
-        self.exact_featured_axis_x.append(["0"])
-        self.exact_featured_axis_x.setTitleText("Exactly X Featured 5 Stars")
+        self.exact_featured_axis_x.append([TEXT.BLANK])
+        self.exact_featured_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
         self.exact_featured_chart.addAxis(self.exact_featured_axis_x, Qt.AlignmentFlag.AlignBottom)
         exact_featured_bar_series.attachAxis(self.exact_featured_axis_x)
 
         axis_y = QValueAxis()
         axis_y.setRange(0, 125)
         axis_y.setTickCount(6)
-        axis_y.setTitleText("Probability (%)")
+        axis_y.setTitleText(TEXT.PROBABILITY)
 
         self.exact_featured_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         exact_featured_bar_series.attachAxis(axis_y)
@@ -344,7 +341,7 @@ class SimulationWindow(QMainWindow):
         self.exact_standard_chart.legend().setVisible(False)
         self.exact_standard_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
-        self.exact_standard_bar_set = QBarSet("Standard 5 Star")
+        self.exact_standard_bar_set = QBarSet(TEXT.STANDARD_5_STAR)
         self.exact_standard_bar_set.append(list(self.standard_rolls.values()))
 
         exact_standard_bar_series = QBarSeries()
@@ -356,15 +353,15 @@ class SimulationWindow(QMainWindow):
         self.exact_standard_chart.addSeries(exact_standard_bar_series)
 
         self.exact_standard_axis_x = QBarCategoryAxis()
-        self.exact_standard_axis_x.append(["0"])
-        self.exact_standard_axis_x.setTitleText("Exactly X Standard 5 Stars")
+        self.exact_standard_axis_x.append([TEXT.BLANK])
+        self.exact_standard_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
         self.exact_standard_chart.addAxis(self.exact_standard_axis_x, Qt.AlignmentFlag.AlignBottom)
         exact_standard_bar_series.attachAxis(self.exact_standard_axis_x)
 
         axis_y = QValueAxis()
         axis_y.setRange(0, 125)
         axis_y.setTickCount(6)
-        axis_y.setTitleText("Probability (%)")
+        axis_y.setTitleText(TEXT.PROBABILITY)
 
         self.exact_standard_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         exact_standard_bar_series.attachAxis(axis_y)
@@ -386,7 +383,7 @@ class SimulationWindow(QMainWindow):
         self.exact_combined_chart.legend().setVisible(False)
         self.exact_combined_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
-        self.exact_combined_bar_set = QBarSet("Total 5 Star")
+        self.exact_combined_bar_set = QBarSet(TEXT.TOTAL_5_STAR)
 
         exact_combined_bar_series = QBarSeries()
         exact_combined_bar_series.append(self.exact_combined_bar_set)
@@ -397,15 +394,15 @@ class SimulationWindow(QMainWindow):
         self.exact_combined_chart.addSeries(exact_combined_bar_series)
 
         self.exact_combined_axis_x = QBarCategoryAxis()
-        self.exact_combined_axis_x.append(["0"])
-        self.exact_combined_axis_x.setTitleText("Exactly X 5 Stars")
+        self.exact_combined_axis_x.append([TEXT.BLANK])
+        self.exact_combined_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
         self.exact_combined_chart.addAxis(self.exact_combined_axis_x, Qt.AlignmentFlag.AlignBottom)
         exact_combined_bar_series.attachAxis(self.exact_combined_axis_x)
 
         axis_y = QValueAxis()
         axis_y.setRange(0, 125)
         axis_y.setTickCount(6)
-        axis_y.setTitleText("Probability (%)")
+        axis_y.setTitleText(TEXT.PROBABILITY)
 
         self.exact_combined_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         exact_combined_bar_series.attachAxis(axis_y)
@@ -432,7 +429,7 @@ class SimulationWindow(QMainWindow):
         self.at_most_featured_chart.legend().setVisible(False)
         self.at_most_featured_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
-        self.at_most_featured_bar_set = QBarSet("Featured 5 Star")
+        self.at_most_featured_bar_set = QBarSet(TEXT.FEATURED_5_STAR)
 
         at_most_featured_bar_series = QBarSeries()
         at_most_featured_bar_series.append(self.at_most_featured_bar_set)
@@ -443,15 +440,16 @@ class SimulationWindow(QMainWindow):
         self.at_most_featured_chart.addSeries(at_most_featured_bar_series)
 
         self.at_most_featured_axis_x = QBarCategoryAxis()
-        self.at_most_featured_axis_x.append(["0"])
-        self.at_most_featured_axis_x.setTitleText("At Most X Featured 5 Stars")
+        self.at_most_featured_axis_x.append([TEXT.BLANK])
+        self.at_most_featured_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
         self.at_most_featured_chart.addAxis(self.at_most_featured_axis_x, Qt.AlignmentFlag.AlignBottom)
         at_most_featured_bar_series.attachAxis(self.at_most_featured_axis_x)
 
         axis_y = QValueAxis()
         axis_y.setRange(0, 125)
         axis_y.setTickCount(6)
-        axis_y.setTitleText("Probability (%)")
+        axis_y.setTitleText(TEXT.PROBABILITY)
+
         self.at_most_featured_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         at_most_featured_bar_series.attachAxis(axis_y)
 
@@ -470,7 +468,7 @@ class SimulationWindow(QMainWindow):
         self.at_most_standard_chart.legend().setVisible(False)
         self.at_most_standard_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
-        self.at_most_standard_bar_set = QBarSet("Standard 5 Star")
+        self.at_most_standard_bar_set = QBarSet(TEXT.STANDARD_5_STAR)
 
         at_most_standard_bar_series = QBarSeries()
         at_most_standard_bar_series.append(self.at_most_standard_bar_set)
@@ -481,15 +479,15 @@ class SimulationWindow(QMainWindow):
         self.at_most_standard_chart.addSeries(at_most_standard_bar_series)
 
         self.at_most_standard_axis_x = QBarCategoryAxis()
-        self.at_most_standard_axis_x.append(["0"])
-        self.at_most_standard_axis_x.setTitleText("At Most X Standard 5 Stars")
+        self.at_most_standard_axis_x.append([TEXT.BLANK])
+        self.at_most_standard_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
         self.at_most_standard_chart.addAxis(self.at_most_standard_axis_x, Qt.AlignmentFlag.AlignBottom)
         at_most_standard_bar_series.attachAxis(self.at_most_standard_axis_x)
 
         axis_y = QValueAxis()
         axis_y.setRange(0, 125)
         axis_y.setTickCount(6)
-        axis_y.setTitleText("Probability (%)")
+        axis_y.setTitleText(TEXT.PROBABILITY)
         self.at_most_standard_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         at_most_standard_bar_series.attachAxis(axis_y)
 
@@ -508,7 +506,7 @@ class SimulationWindow(QMainWindow):
         self.at_most_combined_chart.legend().setVisible(False)
         self.at_most_combined_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
-        self.at_most_combined_bar_set = QBarSet("Total 5 Star")
+        self.at_most_combined_bar_set = QBarSet(TEXT.TOTAL_5_STAR)
 
         at_most_combined_bar_series = QBarSeries()
         at_most_combined_bar_series.append(self.at_most_combined_bar_set)
@@ -519,15 +517,16 @@ class SimulationWindow(QMainWindow):
         self.at_most_combined_chart.addSeries(at_most_combined_bar_series)
 
         self.at_most_combined_axis_x = QBarCategoryAxis()
-        self.at_most_combined_axis_x.append(["0"])
-        self.at_most_combined_axis_x.setTitleText("At Most X 5 Stars")
+        self.at_most_combined_axis_x.append([TEXT.BLANK])
+        self.at_most_combined_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
         self.at_most_combined_chart.addAxis(self.at_most_combined_axis_x, Qt.AlignmentFlag.AlignBottom)
         at_most_combined_bar_series.attachAxis(self.at_most_combined_axis_x)
 
         axis_y = QValueAxis()
         axis_y.setRange(0, 125)
         axis_y.setTickCount(6)
-        axis_y.setTitleText("Probability (%)")
+        axis_y.setTitleText(TEXT.PROBABILITY)
+
         self.at_most_combined_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         at_most_combined_bar_series.attachAxis(axis_y)
 
@@ -552,7 +551,7 @@ class SimulationWindow(QMainWindow):
         self.at_least_featured_chart.legend().setVisible(False)
         self.at_least_featured_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
-        self.at_least_featured_bar_set = QBarSet("Featured 5 Star")
+        self.at_least_featured_bar_set = QBarSet(TEXT.FEATURED_5_STAR)
 
         at_least_featured_bar_series = QBarSeries()
         at_least_featured_bar_series.append(self.at_least_featured_bar_set)
@@ -563,15 +562,16 @@ class SimulationWindow(QMainWindow):
         self.at_least_featured_chart.addSeries(at_least_featured_bar_series)
 
         self.at_least_featured_axis_x = QBarCategoryAxis()
-        self.at_least_featured_axis_x.append(["0"])
-        self.at_least_featured_axis_x.setTitleText("At Least X Featured 5 Stars")
+        self.at_least_featured_axis_x.append([TEXT.BLANK])
+        self.at_least_featured_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
         self.at_least_featured_chart.addAxis(self.at_least_featured_axis_x, Qt.AlignmentFlag.AlignBottom)
         at_least_featured_bar_series.attachAxis(self.at_least_featured_axis_x)
 
         axis_y = QValueAxis()
         axis_y.setRange(0, 125)
         axis_y.setTickCount(6)
-        axis_y.setTitleText("Probability (%)")
+        axis_y.setTitleText(TEXT.PROBABILITY)
+
         self.at_least_featured_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         at_least_featured_bar_series.attachAxis(axis_y)
 
@@ -590,7 +590,7 @@ class SimulationWindow(QMainWindow):
         self.at_least_standard_chart.legend().setVisible(False)
         self.at_least_standard_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
-        self.at_least_standard_bar_set = QBarSet("Standard 5 Star")
+        self.at_least_standard_bar_set = QBarSet(TEXT.STANDARD_5_STAR)
 
         at_least_standard_bar_series = QBarSeries()
         at_least_standard_bar_series.append(self.at_least_standard_bar_set)
@@ -601,15 +601,16 @@ class SimulationWindow(QMainWindow):
         self.at_least_standard_chart.addSeries(at_least_standard_bar_series)
 
         self.at_least_standard_axis_x = QBarCategoryAxis()
-        self.at_least_standard_axis_x.append(["0"])
-        self.at_least_standard_axis_x.setTitleText("At Least X Standard 5 Stars")
+        self.at_least_standard_axis_x.append([TEXT.BLANK])
+        self.at_least_standard_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
         self.at_least_standard_chart.addAxis(self.at_least_standard_axis_x, Qt.AlignmentFlag.AlignBottom)
         at_least_standard_bar_series.attachAxis(self.at_least_standard_axis_x)
 
         axis_y = QValueAxis()
         axis_y.setRange(0, 125)
         axis_y.setTickCount(6)
-        axis_y.setTitleText("Probability (%)")
+        axis_y.setTitleText(TEXT.PROBABILITY)
+
         self.at_least_standard_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         at_least_standard_bar_series.attachAxis(axis_y)
 
@@ -628,7 +629,7 @@ class SimulationWindow(QMainWindow):
         self.at_least_combined_chart.legend().setVisible(False)
         self.at_least_combined_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
 
-        self.at_least_combined_bar_set = QBarSet("Total 5 Star")
+        self.at_least_combined_bar_set = QBarSet(TEXT.TOTAL_5_STAR)
 
         at_least_combined_bar_series = QBarSeries()
         at_least_combined_bar_series.append(self.at_least_combined_bar_set)
@@ -639,15 +640,16 @@ class SimulationWindow(QMainWindow):
         self.at_least_combined_chart.addSeries(at_least_combined_bar_series)
 
         self.at_least_combined_axis_x = QBarCategoryAxis()
-        self.at_least_combined_axis_x.append(["0"])
-        self.at_least_combined_axis_x.setTitleText("At Least X 5 Stars")
+        self.at_least_combined_axis_x.append([TEXT.BLANK])
+        self.at_least_combined_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
         self.at_least_combined_chart.addAxis(self.at_least_combined_axis_x, Qt.AlignmentFlag.AlignBottom)
         at_least_combined_bar_series.attachAxis(self.at_least_combined_axis_x)
 
         axis_y = QValueAxis()
         axis_y.setRange(0, 125)
         axis_y.setTickCount(6)
-        axis_y.setTitleText("Probability (%)")
+        axis_y.setTitleText(TEXT.PROBABILITY)
+
         self.at_least_combined_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         at_least_combined_bar_series.attachAxis(axis_y)
 
@@ -714,7 +716,7 @@ class SimulationWindow(QMainWindow):
         # Record the start time
         self.sim_start_time = timer()
 
-        self.info_box.setText("Simulation running . . .")
+        self.info_box.setText(TEXT.SIMULATION_RUNNING)
 
         # Start the simulation thread (no sleep, runs at max speed)
         self.sim_thread = SimulationThread(self.model, pulls)
@@ -746,6 +748,7 @@ class SimulationWindow(QMainWindow):
 
     def display_elapsed_time(self, seconds: float):
         """Display elapsed time in the info box"""
+
         m = seconds // 60
         s = seconds % 60
         ms = int((seconds - int(seconds)) * 1000)
@@ -753,7 +756,7 @@ class SimulationWindow(QMainWindow):
         if m > 0:
             fmt += f"{int(m)}m "
         fmt += f"{int(s)}.{ms:03d}s"
-        self.info_box.setText(f"Simulation completed in {fmt}")
+        self.info_box.setText(TEXT.SIMULATION_COMPLETED.format(fmt))
 
     def reset_simulation(self):
 
@@ -780,7 +783,7 @@ class SimulationWindow(QMainWindow):
         self.animation_interval.setEnabled(True)
 
         # Reset info box
-        self.info_box.setText("")
+        self.info_box.setText(TEXT.BLANK)
 
         # Reset the model and charts
         self.model = None
@@ -791,35 +794,35 @@ class SimulationWindow(QMainWindow):
         # Reset bar sets and axes
         self.exact_featured_bar_set.remove(0, self.exact_featured_bar_set.count())
         self.exact_featured_axis_x.clear()
-        self.exact_featured_axis_x.append(["0"])
+        self.exact_featured_axis_x.append([TEXT.BLANK])
         self.exact_standard_bar_set.remove(0, self.exact_standard_bar_set.count())
         self.exact_standard_axis_x.clear()
-        self.exact_standard_axis_x.append(["0"])
+        self.exact_standard_axis_x.append([TEXT.BLANK])
         self.exact_combined_bar_set.remove(0, self.exact_combined_bar_set.count())
         self.exact_combined_axis_x.clear()
-        self.exact_combined_axis_x.append(["0"])
+        self.exact_combined_axis_x.append([TEXT.BLANK])
 
         # Reset At Most charts
         self.at_most_featured_bar_set.remove(0, self.at_most_featured_bar_set.count())
         self.at_most_featured_axis_x.clear()
-        self.at_most_featured_axis_x.append(["0"])
+        self.at_most_featured_axis_x.append([TEXT.BLANK])
         self.at_most_standard_bar_set.remove(0, self.at_most_standard_bar_set.count())
         self.at_most_standard_axis_x.clear()
-        self.at_most_standard_axis_x.append(["0"])
+        self.at_most_standard_axis_x.append([TEXT.BLANK])
         self.at_most_combined_bar_set.remove(0, self.at_most_combined_bar_set.count())
         self.at_most_combined_axis_x.clear()
-        self.at_most_combined_axis_x.append(["0"])
+        self.at_most_combined_axis_x.append([TEXT.BLANK])
 
         # Reset At Least charts
         self.at_least_featured_bar_set.remove(0, self.at_least_featured_bar_set.count())
         self.at_least_featured_axis_x.clear()
-        self.at_least_featured_axis_x.append(["0"])
+        self.at_least_featured_axis_x.append([TEXT.BLANK])
         self.at_least_standard_bar_set.remove(0, self.at_least_standard_bar_set.count())
         self.at_least_standard_axis_x.clear()
-        self.at_least_standard_axis_x.append(["0"])
+        self.at_least_standard_axis_x.append([TEXT.BLANK])
         self.at_least_combined_bar_set.remove(0, self.at_least_combined_bar_set.count())
         self.at_least_combined_axis_x.clear()
-        self.at_least_combined_axis_x.append(["0"])
+        self.at_least_combined_axis_x.append([TEXT.BLANK])
 
         # Reset joint table
         self.joint_table.clear()

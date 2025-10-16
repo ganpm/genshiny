@@ -13,10 +13,12 @@ from PyQt6.QtGui import (
 class CountSpinbox(QSpinBox):
 
     def __init__(self, parent=None):
+
         super().__init__(parent)
         self.init_UI()
 
     def init_UI(self):
+
         self.setRange(0, 999999)
         self.setSingleStep(1)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -26,6 +28,7 @@ class CountSpinbox(QSpinBox):
         # self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def enterEvent(self, event: QEnterEvent) -> None:
+
         self.setFocus()
         # If readonly or disabled, set cursor to normal
         if self.isReadOnly() or not self.isEnabled():
@@ -36,6 +39,7 @@ class CountSpinbox(QSpinBox):
         super().enterEvent(event)
 
     def leaveEvent(self, event: QEvent) -> None:
+
         self.clearFocus()
         # Always reset mouse cursor when leaving
         self.setCursor(Qt.CursorShape.ArrowCursor)

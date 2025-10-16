@@ -12,7 +12,9 @@ from PyQt6.QtWidgets import (
 
 
 class ErrorDialog(QMessageBox):
+
     def __init__(self, message: str = ''):
+
         super().__init__()
         traceback_text = traceback.format_exc()
         self.setWindowTitle("Error Occurred")

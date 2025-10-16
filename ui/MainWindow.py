@@ -56,9 +56,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(TEXT.APP_NAME)
         self.setWindowIcon(QIcon(ASSETS.APP_ICON))
         # Set window size and position
-        self.setGeometry(*CONFIG.GEOMETRY)
+        self.setGeometry(*CONFIG.WINDOW.GEOMETRY)
         # Disable resizing
-        self.setFixedSize(*CONFIG.SIZE)
+        self.setFixedSize(*CONFIG.WINDOW.SIZE)
         # Disable maximize button
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
@@ -85,29 +85,32 @@ class MainWindow(QMainWindow):
         def primogems_icon():
             icon = QLabel()
             icon.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-            icon.setPixmap(QIcon(ASSETS.PRIMOGEMS_ICON).pixmap(*CONFIG.ICON_SIZE))
+            icon.setPixmap(QIcon(ASSETS.PRIMOGEMS_ICON).pixmap(*CONFIG.ICON.SIZE))
             return icon
 
         def fates_icon():
             icon = QLabel()
             icon.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-            icon.setPixmap(QIcon(ASSETS.FATES_ICON).pixmap(*CONFIG.ICON_SIZE))
+            icon.setPixmap(QIcon(ASSETS.FATES_ICON).pixmap(*CONFIG.ICON.SIZE))
             return icon
 
         def starglitter_icon():
             icon = QLabel()
             icon.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-            icon.setPixmap(QIcon(ASSETS.STARGLITTER_ICON).pixmap(*CONFIG.ICON_SIZE))
+            icon.setPixmap(QIcon(ASSETS.STARGLITTER_ICON).pixmap(*CONFIG.ICON.SIZE))
             return icon
 
         def crystal_icon():
             icon = QLabel()
             icon.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-            icon.setPixmap(QIcon(ASSETS.CRYSTAL_ICON).pixmap(*CONFIG.ICON_SIZE))
+            icon.setPixmap(QIcon(ASSETS.CRYSTAL_ICON).pixmap(*CONFIG.ICON.SIZE))
             return icon
 
-        # Inventory
-        layout.addWidget(QLabel("<b>Pulls Calculator</b>"))
+        pull_calculator_label = QLabel(TEXT.PULLS_CALCULATOR)
+        pull_calculator_label_font = pull_calculator_label.font()
+        pull_calculator_label_font.setBold(True)
+        pull_calculator_label.setFont(pull_calculator_label_font)
+        layout.addWidget(pull_calculator_label)
         groupbox = FrameBox()
         layout.addWidget(groupbox)
 
@@ -147,7 +150,7 @@ class MainWindow(QMainWindow):
         groupbox.setLayout(groupbox_layout)
 
         def display_widget(icon: QLabel) -> tuple[QHBoxLayout, QLabel]:
-            display = QLabel("0")
+            display = QLabel()
             display.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             display.setFixedWidth(80)
             layout = right_aligned_layout(display, icon)
@@ -155,33 +158,41 @@ class MainWindow(QMainWindow):
 
             return layout, display
 
-        box = left_aligned_layout("From", primogems_icon(), TEXT.PRIMOGEMS)
+        box = left_aligned_layout(TEXT.FROM, primogems_icon(), TEXT.PRIMOGEMS)
         groupbox_layout.addLayout(box, 0, 0)
 
         container, self.fates_from_primogems = display_widget(fates_icon())
         groupbox_layout.addLayout(container, 0, 1)
 
-        box = left_aligned_layout("From", starglitter_icon(), TEXT.STARGLITTER)
+        box = left_aligned_layout(TEXT.FROM, starglitter_icon(), TEXT.STARGLITTER)
         groupbox_layout.addLayout(box, 1, 0)
 
         container, self.fates_from_starglitter = display_widget(fates_icon())
         groupbox_layout.addLayout(container, 1, 1)
 
-        box = left_aligned_layout("From", fates_icon(), TEXT.FATES)
+        box = left_aligned_layout(TEXT.FROM, fates_icon(), TEXT.FATES)
         groupbox_layout.addLayout(box, 2, 0)
 
         container, self.fates_from_inventory = display_widget(fates_icon())
         groupbox_layout.addLayout(container, 2, 1)
 
-        box = left_aligned_layout("From", crystal_icon(), TEXT.CRYSTAL)
+        box = left_aligned_layout(TEXT.FROM, crystal_icon(), TEXT.CRYSTAL)
         groupbox_layout.addLayout(box, 3, 0)
         container, self.fates_from_crystal = display_widget(fates_icon())
         groupbox_layout.addLayout(container, 3, 1)
 
-        box = left_aligned_layout("<b>Total Fates</b>")
+        total_fates_label = QLabel(TEXT.TOTAL_FATES)
+        total_fates_label_font = total_fates_label.font()
+        total_fates_label_font.setBold(True)
+        total_fates_label.setFont(total_fates_label_font)
+
+        box = left_aligned_layout(total_fates_label)
         groupbox_layout.addLayout(box, 4, 0)
 
         container, self.total_fates = display_widget(fates_icon())
+        total_fates_font = self.total_fates.font()
+        total_fates_font.setBold(True)
+        self.total_fates.setFont(total_fates_font)
         groupbox_layout.addLayout(container, 4, 1)
 
         self.chart = QChart()
@@ -198,9 +209,8 @@ class MainWindow(QMainWindow):
         chart = QChart()
         chart.setTheme(QChart.ChartTheme.ChartThemeDark)
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        # chart.setTitle("Pity Chart")
 
-        self.bar_set = QBarSet("Pity Count")
+        self.bar_set = QBarSet(TEXT.PITY_COUNT)
         self.bar_set.append(self.pity_count_per_breakpoint)
 
         bar_series = QBarSeries()
@@ -210,7 +220,7 @@ class MainWindow(QMainWindow):
 
         axis_x = QBarCategoryAxis()
         axis_x.append([str(i) for i in self.pity_breakpoints])
-        axis_x.setTitleText("Pity Breakpoints")
+        axis_x.setTitleText(TEXT.PITY_BREAKPOINTS)
         chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         bar_series.attachAxis(axis_x)
 
@@ -219,7 +229,7 @@ class MainWindow(QMainWindow):
         min_int_floor = max(int(min(self.pity_count_per_breakpoint)) - 1, 0)
         self.axis_y.setRange(min_int_floor, max_int_ceil)
         self.axis_y.setTickCount(max_int_ceil - min_int_floor + 1)
-        self.axis_y.setTitleText("Pity Count")
+        self.axis_y.setTitleText(TEXT.PITY_COUNT)
 
         chart.addAxis(self.axis_y, Qt.AlignmentFlag.AlignLeft)
         bar_series.attachAxis(self.axis_y)
@@ -266,7 +276,7 @@ class MainWindow(QMainWindow):
             CONFIG.SAVE_PATH.mkdir(parents=True, exist_ok=True)
         starting_dir = str(CONFIG.SAVE_PATH)
         open_dir, _ = QFileDialog.getOpenFileName(
-            self, "Open File", starting_dir, "JSON Files (*.json)")
+            self, TEXT.OPEN_FILE_CAPTION, starting_dir, TEXT.FILE_FILTER)
         if not open_dir:
             return
         # Load the JSON file
@@ -278,7 +288,7 @@ class MainWindow(QMainWindow):
         try:
             self.set_data(data)
         except Exception:
-            ErrorDialog("Failed to load data from file.")
+            ErrorDialog(TEXT.OPEN_FAILED)
 
     def save_data(self):
         """Open a file dialog to save data to a JSON file."""
@@ -287,7 +297,7 @@ class MainWindow(QMainWindow):
             CONFIG.SAVE_PATH.mkdir(parents=True, exist_ok=True)
         starting_dir = str(CONFIG.SAVE_PATH)
         save_dir, _ = QFileDialog.getSaveFileName(
-            self, "Save File", starting_dir, "JSON Files (*.json)")
+            self, TEXT.SAVE_FILE_CAPTION, starting_dir, TEXT.FILE_FILTER)
         if not save_dir:
             return
         data = self.get_data()
@@ -379,7 +389,7 @@ class MainWindow(QMainWindow):
             fates_from_inventory +
             fates_from_crystal)
         self.total_pulls = total_fates
-        self.total_fates.setText(f"<b>{total_fates}</b>")
+        self.total_fates.setText(str(total_fates))
 
         # Generate the pity chart
         self.pity_count_per_breakpoint = [round(total_fates / i, 2) for i in self.pity_breakpoints]

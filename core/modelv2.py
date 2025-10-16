@@ -38,7 +38,6 @@ class GenshinImpactGachaModel:
         self.counter4 = 0
 
     def pull(self) -> PullResult:
-        """Gacha pull without Capturing Radiance."""
 
         x = self.rng.random()
 

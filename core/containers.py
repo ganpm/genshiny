@@ -13,10 +13,10 @@ class Position:
 
 class Size:
 
-    def __init__(self, width: int, height: int):
+    def __init__(self, w: int, h: int):
 
-        self.WIDTH = width
-        self.HEIGHT = height
+        self.WIDTH = w
+        self.HEIGHT = h
 
     def __iter__(self):
 
@@ -26,12 +26,12 @@ class Size:
 
 class Geometry:
 
-    def __init__(self, x: int, y: int, width: int, height: int):
+    def __init__(self, x: int, y: int, w: int, h: int):
 
         self.X = x
         self.Y = y
-        self.WIDTH = width
-        self.HEIGHT = height
+        self.WIDTH = w
+        self.HEIGHT = h
 
     def __iter__(self):
 
@@ -41,10 +41,10 @@ class Geometry:
         yield self.HEIGHT
 
 
-class WidgetGeometry:
+class Box:
 
-    def __init__(self, x: int, y: int, width: int, height: int):
+    def __init__(self, x: int = 0, y: int = 0, w: int = 0, h: int = 0):
 
         self.POSITION = Position(x, y)
-        self.SIZE = Size(width, height)
-        self.GEOMETRY = Geometry(x, y, width, height)
+        self.SIZE = Size(w, h)
+        self.GEOMETRY = Geometry(x, y, w, h)
