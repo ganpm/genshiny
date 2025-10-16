@@ -10,12 +10,15 @@ from PyQt6.QtWidgets import (
     QTextEdit,
 )
 
+from .utils import set_titlebar_darkmode
+
 
 class ErrorDialog(QMessageBox):
 
     def __init__(self, message: str = ''):
 
         super().__init__()
+        set_titlebar_darkmode(self)
         traceback_text = traceback.format_exc()
         self.setWindowTitle("Error Occurred")
 

@@ -40,7 +40,7 @@ from core.config import CONFIG
 from core.assets import ASSETS
 from core.text import TEXT
 from core.modelv2 import GenshinImpactGachaModel
-from ui.utils import set_titlebar_darkmode, cmap
+from .utils import set_titlebar_darkmode, cmap
 
 from .CountSpinbox import CountSpinbox
 from .Dropdown import Dropdown
