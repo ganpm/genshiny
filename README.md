@@ -1,5 +1,6 @@
 # Genshiny
 ![Python](https://img.shields.io/badge/python-3.12.2-blue.svg)
+![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)
 
 A desktop application for managing and analyzing your pulls in Genshin Impact.
 
@@ -24,27 +25,32 @@ Genshiny helps players track their gacha resources and simulate pull outcomes us
 
 1. **Clone the repository**
 
-2. **Create and activate virtual environment**
-   
-   Windows
-   ```sh
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   ```
+    ```sh
+    git clone https://github.com/ganpm/genshiny
+    cd genshiny
+    ```
 
-   Linux
-   ```sh
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
+2. **Create and activate virtual environment**
+
+    Windows
+    ```sh
+    python -m venv .venv
+    .\.venv\Scripts\Activate.ps1
+    ```
+
+    Linux
+    ```sh
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
 
 3. **Install dependencies**
-   ```sh
-   pip install -r requirements.txt
-   pip install pyqtdarktheme==2.1.0 --ignore-requires-python
-   ```
+    ```sh
+    pip install -r requirements.txt
+    pip install pyqtdarktheme==2.1.0 --ignore-requires-python
+    ```
 
-   > **Note**: The second command is required due to a known issue with `pyqtdarktheme` installation. See [PyQtDarkTheme GitHub Issue #252](https://github.com/5yutan5/PyQtDarkTheme/issues/252) for details.
+    > **Note**: The second command is required due to a known issue with `pyqtdarktheme` installation. See [PyQtDarkTheme GitHub Issue #252](https://github.com/5yutan5/PyQtDarkTheme/issues/252) for details.
 
 ## 🚀 Usage
 
@@ -76,7 +82,7 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 
 ## 📄 License
 
-[Add your license information here]
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
 ## ⚠️ Disclaimer
 
