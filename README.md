@@ -50,8 +50,7 @@ Genshiny helps players track their gacha resources and simulate pull outcomes us
     pip install pyqtdarktheme==2.1.0 --ignore-requires-python
     ```
 
-    > [!NOTE]
-    > The second command is required due to a known issue with `pyqtdarktheme` installation.
+    > **Note:** The second command is required due to a known issue with `pyqtdarktheme` installation.
     >
     > See [PyQtDarkTheme GitHub Issue #252](https://github.com/5yutan5/PyQtDarkTheme/issues/252) for details.
 
