@@ -20,8 +20,6 @@ from PyQt6.QtGui import (
 from PyQt6.QtCore import (
     Qt,
     QRectF,
-    QThread,
-    QObject,
     QTimer,
 )
 from PyQt6.QtCharts import (
@@ -33,80 +31,22 @@ from PyQt6.QtCharts import (
     QValueAxis,
 )
 
-from threading import Lock
 from timeit import default_timer as timer
 
 from core.config import CONFIG
 from core.assets import ASSETS
 from core.text import TEXT
-from gachamodel import GenshinImpactGachaModel
+from gachamodel import (
+    GenshinImpactGachaModel,
+    CapturingRadianceModel,
+    SimulationThread,
+)
 from .utils import set_titlebar_darkmode, cmap
 
 from .CountSpinbox import CountSpinbox
 from .Dropdown import Dropdown
 from .BooleanComboBox import BooleanComboBox
 from .FrameBox import FrameBox
-
-
-class SimulationThread(QThread):
-
-    def __init__(self, model: GenshinImpactGachaModel, pulls: int, parent: QObject = None):
-
-        super().__init__(parent)
-        self.model = model
-        self.pulls = pulls
-        self._running = True
-        self.featured_rolls = {}
-        self.standard_rolls = {}
-        self.total_rolls = {}
-        self.joint_rolls = {}
-        self.simulation_count = 0
-        self.lock = Lock()  # For thread-safe access to results
-
-    def run(self):
-
-        while self._running:
-            new_featured_rolls, new_standard_rolls = self.model.batch_pull_count(self.pulls)
-            with self.lock:
-                # Update internal counts
-                if new_featured_rolls in self.featured_rolls:
-                    self.featured_rolls[new_featured_rolls] += 1
-                else:
-                    self.featured_rolls[new_featured_rolls] = 1
-
-                if new_standard_rolls in self.standard_rolls:
-                    self.standard_rolls[new_standard_rolls] += 1
-                else:
-                    self.standard_rolls[new_standard_rolls] = 1
-
-                total_rolls = new_featured_rolls + new_standard_rolls
-                if total_rolls in self.total_rolls:
-                    self.total_rolls[total_rolls] += 1
-                else:
-                    self.total_rolls[total_rolls] = 1
-
-                if (new_featured_rolls, new_standard_rolls) in self.joint_rolls:
-                    self.joint_rolls[(new_featured_rolls, new_standard_rolls)] += 1
-                else:
-                    self.joint_rolls[(new_featured_rolls, new_standard_rolls)] = 1
-
-                self.simulation_count += 1
-
-    def stop(self):
-
-        self._running = False
-
-    def get_current_results(self):
-        """Thread-safe method to get current simulation results"""
-
-        with self.lock:
-            return (
-                self.featured_rolls.copy(),
-                self.standard_rolls.copy(),
-                self.total_rolls.copy(),
-                self.joint_rolls.copy(),
-                self.simulation_count
-            )
 
 
 class SimulationWindow(QMainWindow):
@@ -132,10 +72,10 @@ class SimulationWindow(QMainWindow):
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
         self.model = None
-        self.featured_rolls = {}
-        self.standard_rolls = {}
-        self.total_rolls = {}
-        self.joint_rolls = {}
+        self.featured_rolls: dict[int, int] = {}
+        self.standard_rolls: dict[int, int] = {}
+        self.total_rolls: dict[int, int] = {}
+        self.joint_rolls: dict[tuple[int, int], int] = {}
         self.sim_thread = None
 
         # UI update timer
@@ -197,8 +137,8 @@ class SimulationWindow(QMainWindow):
 
         # Simulation Length
         self.sim_length = CountSpinbox()
-        self.sim_length.setRange(1000, 1000000)
-        self.sim_length.setValue(100000)
+        self.sim_length.setRange(1000, 2147483647)
+        self.sim_length.setValue(1000000)
         sim_settings_layout.addWidget(QLabel(TEXT.SIMULATION_LENGTH), 0, 0)
         sim_settings_layout.addWidget(self.sim_length, 0, 1)
 
@@ -711,7 +651,11 @@ class SimulationWindow(QMainWindow):
 
         # Initialize the model
         self.model = GenshinImpactGachaModel(
-            pt=pity, cr=cr, seed=seed, guaranteed=guaranteed)
+            pt=pity,
+            g=guaranteed,
+            cr_model=CapturingRadianceModel(cr=cr, version=2),
+            seed=seed,
+        )
 
         # Record the start time
         self.sim_start_time = timer()
@@ -720,7 +664,7 @@ class SimulationWindow(QMainWindow):
 
         # Start the simulation thread (no sleep, runs at max speed)
         self.sim_thread = SimulationThread(self.model, pulls)
-        self.sim_thread.start()
+        self.sim_thread.run()
 
         # Start the UI update timer
         self.update_timer.setInterval(update_rate)
@@ -737,9 +681,8 @@ class SimulationWindow(QMainWindow):
         self.display_elapsed_time(self.sim_end_time - self.sim_start_time)
 
         # Stop the simulation thread if it's running
-        if self.sim_thread and self.sim_thread.isRunning():
+        if self.sim_thread and self.sim_thread.is_running():
             self.sim_thread.stop()
-            self.sim_thread.wait()
 
         # Enable the run and reset buttons, disable the stop button
         self.reset_button.setEnabled(True)
@@ -764,9 +707,8 @@ class SimulationWindow(QMainWindow):
         if self.update_timer.isActive():
             self.update_timer.stop()
 
-        if self.sim_thread and self.sim_thread.isRunning():
+        if self.sim_thread and self.sim_thread.is_running():
             self.sim_thread.stop()
-            self.sim_thread.wait()
 
         # Reset progress bar to initial state
         self.progress_bar.setValue(0)
@@ -843,11 +785,16 @@ class SimulationWindow(QMainWindow):
     def update_ui_from_simulation(self):
         """Called by timer to update UI with latest simulation results"""
 
-        if not self.sim_thread or not self.sim_thread.isRunning():
+        if not self.sim_thread or not self.sim_thread.is_running():
             return
 
         # Get current results from simulation thread
-        featured_rolls, standard_rolls, total_rolls, joint_rolls, simulation_count = self.sim_thread.get_current_results()
+        simulation_result = self.sim_thread.get_current_results()
+        featured_rolls = simulation_result.featured_rolls
+        standard_rolls = simulation_result.standard_rolls
+        total_rolls = simulation_result.total_rolls
+        joint_rolls = simulation_result.joint_rolls
+        simulation_count = simulation_result.simulation_count
 
         # Update progress bar
         self.progress_bar.setValue(simulation_count)
