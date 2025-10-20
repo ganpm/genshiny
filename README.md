@@ -1,6 +1,7 @@
 # Genshiny
-![Python](https://img.shields.io/badge/python-3.12.2-blue.svg)
-![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
+[![Rust](https://img.shields.io/badge/rust-1.78%2B-orange.svg)](https://www.rust-lang.org/)
+[![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](LICENSE)
 
 A desktop application for managing and analyzing your pulls in Genshin Impact.
 
@@ -19,7 +20,8 @@ Genshiny helps players track their gacha resources and simulate pull outcomes us
 
 ## 🛠️ Prerequisites
 
-- Python 3.12.2
+- **Python 3.12.0** or later
+- **Rust 1.78.0** or later
 
 ## 📦 Installation
 
@@ -54,6 +56,20 @@ Genshiny helps players track their gacha resources and simulate pull outcomes us
     >
     > See [PyQtDarkTheme GitHub Issue #252](https://github.com/5yutan5/PyQtDarkTheme/issues/252) for details.
 
+## 🔧 Building the Model
+
+The simulation model needs to be compiled first using the following commands:
+
+**Development build:**
+```sh
+maturin develop
+```
+
+**Optimized release build (recommended):**
+```sh
+maturin develop --release
+```
+
 ## 🚀 Usage
 
 Run the application:
@@ -61,9 +77,9 @@ Run the application:
 python Genshiny.py
 ```
 
-## 🔨 Building Executable
+## 🔨 Building the Executable
 
-To create a standalone executable:
+To create the standalone executable:
 
 ```sh
 python -m nuitka Genshiny.py
@@ -76,7 +92,7 @@ The build configuration is already specified in the `Genshiny.py` file.
 The gacha simulation models are based on the following:
 
 - **Wish Model**: [Statistical model for Genshin Impact's droprates | HoYoLAB](https://www.hoyolab.com/article/497840)
-- **Capturing Radiance Model**: [Understanding Genshin Impact’s Capturing Radiance: In-Depth Analysis of 4 Million Pulls : r/Genshin_Impact](https://www.reddit.com/r/Genshin_Impact/comments/1hd1sqa/understanding_genshin_impacts_capturing_radiance/)
+- **Capturing Radiance Model**: [Understanding Genshin Impact's Capturing Radiance: In-Depth Analysis of 4 Million Pulls : r/Genshin_Impact](https://www.reddit.com/r/Genshin_Impact/comments/1hd1sqa/understanding_genshin_impacts_capturing_radiance/)
 
 ## 🤝 Contributing
 
