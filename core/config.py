@@ -24,6 +24,6 @@ class CONFIG:
     SAVE_SHORTCUT = "Ctrl+S"
     NEW_SHORTCUT = "Ctrl+N"
 
-    SIMULATION = Box(w=1080, h=860)
+    SIMULATION = Box(w=1080, h=900)
 
-    CHART = Box(x=70, y=10, w=660, h=180)
+    CHART = Box(x=70, y=20, w=640, h=170)
