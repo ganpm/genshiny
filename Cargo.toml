@@ -9,7 +9,8 @@ name = "gachamodel"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.27.0"
+indexmap = "2.12.0"
+pyo3 = { version = "0.27.0", features = ["indexmap"] }
 fastrand = "2.3.0"
 
 [profile.release]
