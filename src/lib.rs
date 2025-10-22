@@ -1,8 +1,9 @@
+use indexmap::IndexMap;
 use pyo3::prelude::*;
 use fastrand;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::collections::HashMap;
+use std::time::{Instant, Duration};
 
 
 #[pyclass(eq, eq_int)]
@@ -317,15 +318,22 @@ impl GenshinImpactGachaModel {
 #[derive(Clone)]
 struct SimulationResult {
     #[pyo3(get)]
-    featured_rolls: HashMap<i32, i32>,
+    featured_rolls: IndexMap<i32, i32>,
     #[pyo3(get)]
-    standard_rolls: HashMap<i32, i32>,
+    standard_rolls: IndexMap<i32, i32>,
     #[pyo3(get)]
-    total_rolls: HashMap<i32, i32>,
+    total_rolls: IndexMap<i32, i32>,
     #[pyo3(get)]
-    joint_rolls: HashMap<(i32, i32), i32>,
+    joint_rolls: IndexMap<(i32, i32), i32>,
     #[pyo3(get)]
     simulation_count: i32,
+    #[pyo3(get)]
+    ftd_range: (i32, i32),
+    #[pyo3(get)]
+    std_range: (i32, i32),
+    #[pyo3(get)]
+    sim_duration: Duration,
+
 }
 
 #[pymethods]
@@ -335,13 +343,81 @@ impl SimulationResult {
     fn new() -> Self {
 
         Self {
-            featured_rolls: HashMap::new(),
-            standard_rolls: HashMap::new(),
-            total_rolls: HashMap::new(),
-            joint_rolls: HashMap::new(),
+            featured_rolls: IndexMap::new(),
+            standard_rolls: IndexMap::new(),
+            total_rolls: IndexMap::new(),
+            joint_rolls: IndexMap::new(),
             simulation_count: 0,
+            ftd_range: (0, 0),
+            std_range: (0, 0),
+            sim_duration: Duration::new(0, 0),
         }
 
+    }
+
+}
+
+
+impl SimulationResult {
+
+    fn update(
+        &mut self,
+        featured: i32,
+        standard: i32,
+    ) {
+
+        self.simulation_count += 1;
+        *self.featured_rolls.entry(featured).or_insert(0) += 1;
+        *self.standard_rolls.entry(standard).or_insert(0) += 1;
+        *self.total_rolls.entry(featured + standard).or_insert(0) += 1;
+        *self.joint_rolls.entry((featured, standard)).or_insert(0) += 1;
+
+    }
+
+    fn fill_range(
+        &self,
+    ) -> SimulationResult {
+
+        let ftd_min = *self.featured_rolls.keys().min().unwrap_or(&0);
+        let ftd_max = *self.featured_rolls.keys().max().unwrap_or(&0);
+        let std_min = *self.standard_rolls.keys().min().unwrap_or(&0);
+        let std_max = *self.standard_rolls.keys().max().unwrap_or(&0);
+        let tot_min = *self.total_rolls.keys().min().unwrap_or(&0);
+        let tot_max = *self.total_rolls.keys().max().unwrap_or(&0);
+
+        let featured_rolls: IndexMap<i32, i32> = (ftd_min..=ftd_max)
+            .map(|ftd| {
+                let count = *self.featured_rolls.get(&ftd).unwrap_or(&0);
+                (ftd, count)
+            })
+            .collect();
+
+        let standard_rolls: IndexMap<i32, i32> = (std_min..=std_max)
+            .map(|std| {
+                let count = *self.standard_rolls.get(&std).unwrap_or(&0);
+                (std, count)
+            })
+            .collect();
+
+        let total_rolls: IndexMap<i32, i32> = (tot_min..=tot_max)
+            .map(|total| {
+                let count = *self.total_rolls.get(&total).unwrap_or(&0);
+                (total, count)
+            })
+            .collect();
+
+        let joint_rolls = self.joint_rolls.clone();
+
+        SimulationResult {
+            featured_rolls,
+            standard_rolls,
+            total_rolls,
+            joint_rolls,
+            simulation_count: self.simulation_count,
+            ftd_range: (ftd_min, ftd_max),
+            std_range: (std_min, std_max),
+            sim_duration: self.sim_duration,
+        }
     }
 
 }
@@ -350,8 +426,9 @@ impl SimulationResult {
 #[pyclass]
 #[derive(Clone)]
 struct SimulationThread {
-    model: Arc<Mutex<GenshinImpactGachaModel>>,
+    model: GenshinImpactGachaModel,
     pulls: i32,
+    sim_length: i32,
     running: Arc<Mutex<bool>>,
     simulation_result: Arc<Mutex<SimulationResult>>,
 }
@@ -361,15 +438,17 @@ struct SimulationThread {
 impl SimulationThread {
 
     #[new]
-    #[pyo3(signature = (model, pulls))]
+    #[pyo3(signature = (model, pulls, sim_length))]
     fn new(
         model: GenshinImpactGachaModel,
         pulls: i32,
+        sim_length: i32,
     ) -> Self {
         
         Self {
-            model: Arc::new(Mutex::new(model)),
+            model,
             pulls,
+            sim_length,
             running: Arc::new(Mutex::new(false)),
             simulation_result: Arc::new(Mutex::new(SimulationResult::new())),
         }
@@ -380,26 +459,30 @@ impl SimulationThread {
         &mut self
     ) {
 
+        // Simulation thread
         thread::spawn({
             let running = Arc::clone(&self.running);
-            let simulation_result = Arc::clone(&self.simulation_result);
-            let model = Arc::clone(&self.model);
+            let sim_result = Arc::clone(&self.simulation_result);
+            let mut model = self.model.clone();
             let pulls = self.pulls;
+            let sim_length = self.sim_length;
 
             move || {
                 *running.lock().unwrap() = true;
+                let mut sim_count = 0;
 
-                while *running.lock().unwrap() {
-                    let mut ml_lock = model.lock().unwrap();
-                    let (featured, standard) = ml_lock.batch_pull_count(pulls);
+                let start_time = Instant::now();
 
-                    let mut sr_lock = simulation_result.lock().unwrap();
-                    sr_lock.simulation_count += 1;
-                    *sr_lock.featured_rolls.entry(featured).or_insert(0) += 1;
-                    *sr_lock.standard_rolls.entry(standard).or_insert(0) += 1;
-                    *sr_lock.total_rolls.entry(featured + standard).or_insert(0) += 1;
-                    *sr_lock.joint_rolls.entry((featured, standard)).or_insert(0) += 1;
+                while *running.lock().unwrap() && sim_count < sim_length {
+
+                    let (featured, standard) = model.batch_pull_count(pulls);
+                    sim_result.lock().unwrap().update(featured, standard);
+
+                    sim_count += 1;
                 }
+
+                let elapsed = start_time.elapsed();
+                sim_result.lock().unwrap().sim_duration = elapsed;
 
                 *running.lock().unwrap() = false;
             }
@@ -427,7 +510,10 @@ impl SimulationThread {
         &self
     ) -> SimulationResult {
 
-        self.simulation_result.lock().unwrap().clone()
+        let sr_lock = self.simulation_result.lock().unwrap();
+        let data = sr_lock.clone();
+        drop(sr_lock);
+        data.fill_range()
 
     }
 
