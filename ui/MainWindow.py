@@ -203,7 +203,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.chart_view)
 
         # from 70 to 90
-        self.pity_breakpoints = list(range(70, 91, 5))
+        self.pity_breakpoints = list(range(72, 91, 3))
         self.pity_count_per_breakpoint = [0 for _ in self.pity_breakpoints]
 
         chart = QChart()
@@ -407,5 +407,5 @@ class MainWindow(QMainWindow):
     def simulate(self):
         """Simulate pulls based on the available fates."""
 
-        dialog = SimulationWindow(pulls=self.total_pulls, parent=self)
+        dialog = SimulationWindow(pulls=self.total_pulls)
         dialog.show()
