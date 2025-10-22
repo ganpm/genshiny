@@ -1,4 +1,4 @@
-
+# flake8: noqa: E221
 
 class TEXT:
 
@@ -60,17 +60,34 @@ class TEXT:
     EXACTLY = "Exactly"
     AT_MOST = "At Most"
     AT_LEAST = "At Least"
-    JOINTLY = "Joint Probability Distribution"
+
+    CHART_VIEW = "Chart View:"
+
+    EQ = "P ( X = x )"
+    LT = "P ( X < x )"
+    GT = "P ( X > x )"
+    LE = "P ( X ≤ x )"
+    GE = "P ( X ≥ x )"
+
+    CHART_VIEW_OPTIONS = [
+        EQ,
+        GT,
+        GE,
+        LT,
+        LE,
+    ]
+
+    MARGINAL_PMF = "Marginal PMF"
+    JOINT_PMF = "Joint PMF"
 
     BLANK = ""
 
-    FEATURED_5_STAR = "Featured 5 Star"
-    STANDARD_5_STAR = "Standard 5 Star"
-    TOTAL_5_STAR = "Total 5 Star"
+    FEATURED_5_STAR = "Featured 5 Stars"
+    STANDARD_5_STAR = "Standard 5 Stars"
+    TOTAL_5_STAR = "Total 5 Stars"
+    NUMBER_OF_5_STAR  = "Number of 5 Stars"
 
-    NUMBER_OF_5_STAR = "Number of 5 Stars"
-
-    PROBABILITY = "Probability (%)"
+    PROBABILITY = "Probability"
 
     SIMULATION_RUNNING = "Simulation running . . ."
     SIMULATION_COMPLETED = "Simulation completed in {}"

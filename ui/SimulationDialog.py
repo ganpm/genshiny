@@ -11,42 +11,38 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
+    QFrame,
 )
 from PyQt6.QtGui import (
     QIcon,
-    QPainter,
     QColor,
 )
 from PyQt6.QtCore import (
     Qt,
-    QRectF,
     QTimer,
 )
-from PyQt6.QtCharts import (
-    QChart,
-    QChartView,
-    QBarSet,
-    QBarSeries,
-    QBarCategoryAxis,
-    QValueAxis,
-)
-
-from timeit import default_timer as timer
 
 from core.config import CONFIG
 from core.assets import ASSETS
 from core.text import TEXT
+from core.utils import norm_dict, convert_dict
 from gachamodel import (
     GenshinImpactGachaModel,
     CapturingRadianceModel,
     SimulationThread,
+    SimulationResult,
 )
-from .utils import set_titlebar_darkmode, cmap
+from .utils import (
+    set_titlebar_darkmode,
+    cmap,
+    left_aligned_layout,
+)
 
 from .CountSpinbox import CountSpinbox
 from .Dropdown import Dropdown
 from .BooleanComboBox import BooleanComboBox
 from .FrameBox import FrameBox
+from .BarGraph import BarGraph
 
 
 class SimulationWindow(QMainWindow):
@@ -71,12 +67,9 @@ class SimulationWindow(QMainWindow):
         # Disable maximize button
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
-        self.model = None
-        self.featured_rolls: dict[int, int] = {}
-        self.standard_rolls: dict[int, int] = {}
-        self.total_rolls: dict[int, int] = {}
-        self.joint_rolls: dict[tuple[int, int], int] = {}
-        self.sim_thread = None
+        self.model: GenshinImpactGachaModel = None
+        self.sim_thread: SimulationThread = None
+        self.sim_result: SimulationResult = None
 
         # UI update timer
         self.update_timer = QTimer(self)
@@ -151,8 +144,8 @@ class SimulationWindow(QMainWindow):
 
         # Animation Interval
         self.animation_interval = CountSpinbox()
-        self.animation_interval.setRange(100, 900)
-        self.animation_interval.setValue(100)
+        self.animation_interval.setRange(50, 900)
+        self.animation_interval.setValue(50)
         # Add a suffix label
         self.animation_interval.setSuffix(TEXT.ANIMATION_SUFFIX)
         sim_settings_layout.addWidget(QLabel(TEXT.ANIMATION_INTERVAL), 2, 0)
@@ -212,391 +205,57 @@ class SimulationWindow(QMainWindow):
         self.tab_widget = QTabWidget()
 
         # Create tabs
-        exact_tab = QWidget()
-        at_most_tab = QWidget()
-        at_least_tab = QWidget()
-        joint_tab = QWidget()
+        marginal_pmf_tab = QWidget()
+        joint_pmf_tab = QWidget()
 
         # Add tabs to tab widget
-        self.tab_widget.addTab(exact_tab, TEXT.EXACTLY)
-        self.tab_widget.addTab(at_most_tab, TEXT.AT_MOST)
-        self.tab_widget.addTab(at_least_tab, TEXT.AT_LEAST)
-        self.tab_widget.addTab(joint_tab, TEXT.JOINTLY)
-
-        # Set up "Exact" tab with charts
-        exact_layout = QVBoxLayout()
-
-        # Featured Character Chart
-
-        self.exact_featured_chart_view = QChartView()
-        self.exact_featured_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.exact_featured_chart_view.setContentsMargins(0, 0, 0, 0)
-        exact_layout.addWidget(self.exact_featured_chart_view)
-
-        self.exact_featured_chart = QChart()
-        self.exact_featured_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.exact_featured_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.exact_featured_chart.setAnimationDuration(100)
-        self.exact_featured_chart.legend().setVisible(False)
-        self.exact_featured_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
-
-        self.exact_featured_bar_set = QBarSet(TEXT.FEATURED_5_STAR)
-
-        exact_featured_bar_series = QBarSeries()
-        exact_featured_bar_series.append(self.exact_featured_bar_set)
-        exact_featured_bar_series.setLabelsVisible(True)
-        exact_featured_bar_series.setLabelsFormat("@value")
-        exact_featured_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.exact_featured_chart.addSeries(exact_featured_bar_series)
-
-        self.exact_featured_axis_x = QBarCategoryAxis()
-        self.exact_featured_axis_x.append([TEXT.BLANK])
-        self.exact_featured_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
-        self.exact_featured_chart.addAxis(self.exact_featured_axis_x, Qt.AlignmentFlag.AlignBottom)
-        exact_featured_bar_series.attachAxis(self.exact_featured_axis_x)
-
-        axis_y = QValueAxis()
-        axis_y.setRange(0, 125)
-        axis_y.setTickCount(6)
-        axis_y.setTitleText(TEXT.PROBABILITY)
-
-        self.exact_featured_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        exact_featured_bar_series.attachAxis(axis_y)
-
-        self.exact_featured_chart_view.setChart(self.exact_featured_chart)
-        self.exact_featured_chart_view.show()
-
-        # Standard Character Chart
-
-        self.exact_standard_chart_view = QChartView()
-        self.exact_standard_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.exact_standard_chart_view.setContentsMargins(0, 0, 0, 0)
-        exact_layout.addWidget(self.exact_standard_chart_view)
-
-        self.exact_standard_chart = QChart()
-        self.exact_standard_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.exact_standard_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.exact_standard_chart.setAnimationDuration(100)
-        self.exact_standard_chart.legend().setVisible(False)
-        self.exact_standard_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
-
-        self.exact_standard_bar_set = QBarSet(TEXT.STANDARD_5_STAR)
-        self.exact_standard_bar_set.append(list(self.standard_rolls.values()))
-
-        exact_standard_bar_series = QBarSeries()
-        exact_standard_bar_series.append(self.exact_standard_bar_set)
-        exact_standard_bar_series.setLabelsVisible(True)
-        exact_standard_bar_series.setLabelsFormat("@value")
-        exact_standard_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.exact_standard_chart.addSeries(exact_standard_bar_series)
-
-        self.exact_standard_axis_x = QBarCategoryAxis()
-        self.exact_standard_axis_x.append([TEXT.BLANK])
-        self.exact_standard_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
-        self.exact_standard_chart.addAxis(self.exact_standard_axis_x, Qt.AlignmentFlag.AlignBottom)
-        exact_standard_bar_series.attachAxis(self.exact_standard_axis_x)
-
-        axis_y = QValueAxis()
-        axis_y.setRange(0, 125)
-        axis_y.setTickCount(6)
-        axis_y.setTitleText(TEXT.PROBABILITY)
-
-        self.exact_standard_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        exact_standard_bar_series.attachAxis(axis_y)
-
-        self.exact_standard_chart_view.setChart(self.exact_standard_chart)
-        self.exact_standard_chart_view.show()
-
-        # Combined Character Chart
-
-        self.exact_combined_chart_view = QChartView()
-        self.exact_combined_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.exact_combined_chart_view.setContentsMargins(0, 0, 0, 0)
-        exact_layout.addWidget(self.exact_combined_chart_view)
-
-        self.exact_combined_chart = QChart()
-        self.exact_combined_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.exact_combined_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.exact_combined_chart.setAnimationDuration(100)
-        self.exact_combined_chart.legend().setVisible(False)
-        self.exact_combined_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
-
-        self.exact_combined_bar_set = QBarSet(TEXT.TOTAL_5_STAR)
-
-        exact_combined_bar_series = QBarSeries()
-        exact_combined_bar_series.append(self.exact_combined_bar_set)
-        exact_combined_bar_series.setLabelsVisible(True)
-        exact_combined_bar_series.setLabelsFormat("@value")
-        exact_combined_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.exact_combined_chart.addSeries(exact_combined_bar_series)
-
-        self.exact_combined_axis_x = QBarCategoryAxis()
-        self.exact_combined_axis_x.append([TEXT.BLANK])
-        self.exact_combined_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
-        self.exact_combined_chart.addAxis(self.exact_combined_axis_x, Qt.AlignmentFlag.AlignBottom)
-        exact_combined_bar_series.attachAxis(self.exact_combined_axis_x)
-
-        axis_y = QValueAxis()
-        axis_y.setRange(0, 125)
-        axis_y.setTickCount(6)
-        axis_y.setTitleText(TEXT.PROBABILITY)
-
-        self.exact_combined_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        exact_combined_bar_series.attachAxis(axis_y)
-
-        self.exact_combined_chart_view.setChart(self.exact_combined_chart)
-        self.exact_combined_chart_view.show()
-
-        exact_layout.addStretch(1)
-        exact_tab.setLayout(exact_layout)
-
-        # Set up "At Most" tab with charts
-        at_most_layout = QVBoxLayout()
-
-        # At Most Featured Character Chart
-        self.at_most_featured_chart_view = QChartView()
-        self.at_most_featured_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.at_most_featured_chart_view.setContentsMargins(0, 0, 0, 0)
-        at_most_layout.addWidget(self.at_most_featured_chart_view)
-
-        self.at_most_featured_chart = QChart()
-        self.at_most_featured_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.at_most_featured_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.at_most_featured_chart.setAnimationDuration(100)
-        self.at_most_featured_chart.legend().setVisible(False)
-        self.at_most_featured_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
-
-        self.at_most_featured_bar_set = QBarSet(TEXT.FEATURED_5_STAR)
-
-        at_most_featured_bar_series = QBarSeries()
-        at_most_featured_bar_series.append(self.at_most_featured_bar_set)
-        at_most_featured_bar_series.setLabelsVisible(True)
-        at_most_featured_bar_series.setLabelsFormat("@value")
-        at_most_featured_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.at_most_featured_chart.addSeries(at_most_featured_bar_series)
-
-        self.at_most_featured_axis_x = QBarCategoryAxis()
-        self.at_most_featured_axis_x.append([TEXT.BLANK])
-        self.at_most_featured_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
-        self.at_most_featured_chart.addAxis(self.at_most_featured_axis_x, Qt.AlignmentFlag.AlignBottom)
-        at_most_featured_bar_series.attachAxis(self.at_most_featured_axis_x)
-
-        axis_y = QValueAxis()
-        axis_y.setRange(0, 125)
-        axis_y.setTickCount(6)
-        axis_y.setTitleText(TEXT.PROBABILITY)
-
-        self.at_most_featured_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        at_most_featured_bar_series.attachAxis(axis_y)
-
-        self.at_most_featured_chart_view.setChart(self.at_most_featured_chart)
-
-        # At Most Standard Character Chart
-        self.at_most_standard_chart_view = QChartView()
-        self.at_most_standard_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.at_most_standard_chart_view.setContentsMargins(0, 0, 0, 0)
-        at_most_layout.addWidget(self.at_most_standard_chart_view)
-
-        self.at_most_standard_chart = QChart()
-        self.at_most_standard_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.at_most_standard_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.at_most_standard_chart.setAnimationDuration(100)
-        self.at_most_standard_chart.legend().setVisible(False)
-        self.at_most_standard_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
-
-        self.at_most_standard_bar_set = QBarSet(TEXT.STANDARD_5_STAR)
-
-        at_most_standard_bar_series = QBarSeries()
-        at_most_standard_bar_series.append(self.at_most_standard_bar_set)
-        at_most_standard_bar_series.setLabelsVisible(True)
-        at_most_standard_bar_series.setLabelsFormat("@value")
-        at_most_standard_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.at_most_standard_chart.addSeries(at_most_standard_bar_series)
-
-        self.at_most_standard_axis_x = QBarCategoryAxis()
-        self.at_most_standard_axis_x.append([TEXT.BLANK])
-        self.at_most_standard_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
-        self.at_most_standard_chart.addAxis(self.at_most_standard_axis_x, Qt.AlignmentFlag.AlignBottom)
-        at_most_standard_bar_series.attachAxis(self.at_most_standard_axis_x)
-
-        axis_y = QValueAxis()
-        axis_y.setRange(0, 125)
-        axis_y.setTickCount(6)
-        axis_y.setTitleText(TEXT.PROBABILITY)
-        self.at_most_standard_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        at_most_standard_bar_series.attachAxis(axis_y)
-
-        self.at_most_standard_chart_view.setChart(self.at_most_standard_chart)
-
-        # At Most Combined Character Chart
-        self.at_most_combined_chart_view = QChartView()
-        self.at_most_combined_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.at_most_combined_chart_view.setContentsMargins(0, 0, 0, 0)
-        at_most_layout.addWidget(self.at_most_combined_chart_view)
-
-        self.at_most_combined_chart = QChart()
-        self.at_most_combined_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.at_most_combined_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.at_most_combined_chart.setAnimationDuration(100)
-        self.at_most_combined_chart.legend().setVisible(False)
-        self.at_most_combined_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
-
-        self.at_most_combined_bar_set = QBarSet(TEXT.TOTAL_5_STAR)
-
-        at_most_combined_bar_series = QBarSeries()
-        at_most_combined_bar_series.append(self.at_most_combined_bar_set)
-        at_most_combined_bar_series.setLabelsVisible(True)
-        at_most_combined_bar_series.setLabelsFormat("@value")
-        at_most_combined_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.at_most_combined_chart.addSeries(at_most_combined_bar_series)
-
-        self.at_most_combined_axis_x = QBarCategoryAxis()
-        self.at_most_combined_axis_x.append([TEXT.BLANK])
-        self.at_most_combined_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
-        self.at_most_combined_chart.addAxis(self.at_most_combined_axis_x, Qt.AlignmentFlag.AlignBottom)
-        at_most_combined_bar_series.attachAxis(self.at_most_combined_axis_x)
-
-        axis_y = QValueAxis()
-        axis_y.setRange(0, 125)
-        axis_y.setTickCount(6)
-        axis_y.setTitleText(TEXT.PROBABILITY)
-
-        self.at_most_combined_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        at_most_combined_bar_series.attachAxis(axis_y)
-
-        self.at_most_combined_chart_view.setChart(self.at_most_combined_chart)
-
-        at_most_layout.addStretch(1)
-        at_most_tab.setLayout(at_most_layout)
-
-        # Set up "At Least" tab with charts
-        at_least_layout = QVBoxLayout()
-
-        # At Least Featured Character Chart
-        self.at_least_featured_chart_view = QChartView()
-        self.at_least_featured_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.at_least_featured_chart_view.setContentsMargins(0, 0, 0, 0)
-        at_least_layout.addWidget(self.at_least_featured_chart_view)
-
-        self.at_least_featured_chart = QChart()
-        self.at_least_featured_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.at_least_featured_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.at_least_featured_chart.setAnimationDuration(100)
-        self.at_least_featured_chart.legend().setVisible(False)
-        self.at_least_featured_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
-
-        self.at_least_featured_bar_set = QBarSet(TEXT.FEATURED_5_STAR)
-
-        at_least_featured_bar_series = QBarSeries()
-        at_least_featured_bar_series.append(self.at_least_featured_bar_set)
-        at_least_featured_bar_series.setLabelsVisible(True)
-        at_least_featured_bar_series.setLabelsFormat("@value")
-        at_least_featured_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.at_least_featured_chart.addSeries(at_least_featured_bar_series)
-
-        self.at_least_featured_axis_x = QBarCategoryAxis()
-        self.at_least_featured_axis_x.append([TEXT.BLANK])
-        self.at_least_featured_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
-        self.at_least_featured_chart.addAxis(self.at_least_featured_axis_x, Qt.AlignmentFlag.AlignBottom)
-        at_least_featured_bar_series.attachAxis(self.at_least_featured_axis_x)
-
-        axis_y = QValueAxis()
-        axis_y.setRange(0, 125)
-        axis_y.setTickCount(6)
-        axis_y.setTitleText(TEXT.PROBABILITY)
-
-        self.at_least_featured_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        at_least_featured_bar_series.attachAxis(axis_y)
-
-        self.at_least_featured_chart_view.setChart(self.at_least_featured_chart)
-
-        # At Least Standard Character Chart
-        self.at_least_standard_chart_view = QChartView()
-        self.at_least_standard_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.at_least_standard_chart_view.setContentsMargins(0, 0, 0, 0)
-        at_least_layout.addWidget(self.at_least_standard_chart_view)
-
-        self.at_least_standard_chart = QChart()
-        self.at_least_standard_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.at_least_standard_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.at_least_standard_chart.setAnimationDuration(100)
-        self.at_least_standard_chart.legend().setVisible(False)
-        self.at_least_standard_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
-
-        self.at_least_standard_bar_set = QBarSet(TEXT.STANDARD_5_STAR)
-
-        at_least_standard_bar_series = QBarSeries()
-        at_least_standard_bar_series.append(self.at_least_standard_bar_set)
-        at_least_standard_bar_series.setLabelsVisible(True)
-        at_least_standard_bar_series.setLabelsFormat("@value")
-        at_least_standard_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.at_least_standard_chart.addSeries(at_least_standard_bar_series)
-
-        self.at_least_standard_axis_x = QBarCategoryAxis()
-        self.at_least_standard_axis_x.append([TEXT.BLANK])
-        self.at_least_standard_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
-        self.at_least_standard_chart.addAxis(self.at_least_standard_axis_x, Qt.AlignmentFlag.AlignBottom)
-        at_least_standard_bar_series.attachAxis(self.at_least_standard_axis_x)
-
-        axis_y = QValueAxis()
-        axis_y.setRange(0, 125)
-        axis_y.setTickCount(6)
-        axis_y.setTitleText(TEXT.PROBABILITY)
-
-        self.at_least_standard_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        at_least_standard_bar_series.attachAxis(axis_y)
-
-        self.at_least_standard_chart_view.setChart(self.at_least_standard_chart)
-
-        # At Least Combined Character Chart
-        self.at_least_combined_chart_view = QChartView()
-        self.at_least_combined_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.at_least_combined_chart_view.setContentsMargins(0, 0, 0, 0)
-        at_least_layout.addWidget(self.at_least_combined_chart_view)
-
-        self.at_least_combined_chart = QChart()
-        self.at_least_combined_chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        self.at_least_combined_chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self.at_least_combined_chart.setAnimationDuration(100)
-        self.at_least_combined_chart.legend().setVisible(False)
-        self.at_least_combined_chart.setPlotArea(QRectF(*CONFIG.CHART.GEOMETRY))
-
-        self.at_least_combined_bar_set = QBarSet(TEXT.TOTAL_5_STAR)
-
-        at_least_combined_bar_series = QBarSeries()
-        at_least_combined_bar_series.append(self.at_least_combined_bar_set)
-        at_least_combined_bar_series.setLabelsVisible(True)
-        at_least_combined_bar_series.setLabelsFormat("@value")
-        at_least_combined_bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.at_least_combined_chart.addSeries(at_least_combined_bar_series)
-
-        self.at_least_combined_axis_x = QBarCategoryAxis()
-        self.at_least_combined_axis_x.append([TEXT.BLANK])
-        self.at_least_combined_axis_x.setTitleText(TEXT.NUMBER_OF_5_STAR)
-        self.at_least_combined_chart.addAxis(self.at_least_combined_axis_x, Qt.AlignmentFlag.AlignBottom)
-        at_least_combined_bar_series.attachAxis(self.at_least_combined_axis_x)
-
-        axis_y = QValueAxis()
-        axis_y.setRange(0, 125)
-        axis_y.setTickCount(6)
-        axis_y.setTitleText(TEXT.PROBABILITY)
-
-        self.at_least_combined_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        at_least_combined_bar_series.attachAxis(axis_y)
-
-        self.at_least_combined_chart_view.setChart(self.at_least_combined_chart)
-
-        at_least_layout.addStretch(1)
-        at_least_tab.setLayout(at_least_layout)
+        self.tab_widget.addTab(marginal_pmf_tab, TEXT.MARGINAL_PMF)
+        self.tab_widget.addTab(joint_pmf_tab, TEXT.JOINT_PMF)
+
+        # Set up Marginal PMF tab with charts
+        marginal_pmf_layout = QVBoxLayout()
+
+        # Chart View selector
+        self.chart_view_dropdown = Dropdown(options=TEXT.CHART_VIEW_OPTIONS, width=100)
+        self.chart_view_dropdown.currentIndexChanged.connect(self.update_charts)
+        marginal_pmf_layout.addLayout(left_aligned_layout(TEXT.CHART_VIEW, self.chart_view_dropdown))
+
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
+        marginal_pmf_layout.addWidget(line)
+
+        # Featured Chart
+
+        self._featured_chart = BarGraph(
+            title=TEXT.FEATURED_5_STAR,
+            x_label=TEXT.NUMBER_OF_5_STAR,
+            y_label=TEXT.PROBABILITY,
+            geometry=CONFIG.CHART.GEOMETRY,
+        )
+        marginal_pmf_layout.addWidget(self._featured_chart)
+
+        # Standard Chart
+
+        self._standard_chart = BarGraph(
+            title=TEXT.STANDARD_5_STAR,
+            x_label=TEXT.STANDARD_5_STAR,
+            y_label=TEXT.PROBABILITY,
+            geometry=CONFIG.CHART.GEOMETRY,
+        )
+        marginal_pmf_layout.addWidget(self._standard_chart)
+
+        # Combined Chart
+
+        self._combined_chart = BarGraph(
+            title=TEXT.TOTAL_5_STAR,
+            x_label=TEXT.TOTAL_5_STAR,
+            y_label=TEXT.PROBABILITY,
+            geometry=CONFIG.CHART.GEOMETRY,
+        )
+        marginal_pmf_layout.addWidget(self._combined_chart)
+
+        marginal_pmf_tab.setLayout(marginal_pmf_layout)
 
         # Joint Probability Tab
         joint_layout = QVBoxLayout()
@@ -606,12 +265,12 @@ class SimulationWindow(QMainWindow):
         self.joint_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
         joint_layout.addWidget(self.joint_table)
-        joint_tab.setLayout(joint_layout)
+        joint_pmf_tab.setLayout(joint_layout)
 
         # Add tab widget to main layout
         layout.addWidget(self.tab_widget, stretch=1)
 
-        # Set default tab to "Exact"
+        # Set default tab to Marginal PMF
         self.tab_widget.setCurrentIndex(0)
 
     def start_simulation_thread(self):
@@ -621,19 +280,14 @@ class SimulationWindow(QMainWindow):
         pity = self.pity.value()
         guaranteed = self.guaranteed.value()
         cr = self.cr.currentIndex()
+        sim_length = self.sim_length.value()
         seed = self.seed.value()
         update_rate = self.animation_interval.value()
 
         # Set the animation speed
-        self.exact_featured_chart.setAnimationDuration(update_rate)
-        self.exact_standard_chart.setAnimationDuration(update_rate)
-        self.exact_combined_chart.setAnimationDuration(update_rate)
-        self.at_most_featured_chart.setAnimationDuration(update_rate)
-        self.at_most_standard_chart.setAnimationDuration(update_rate)
-        self.at_most_combined_chart.setAnimationDuration(update_rate)
-        self.at_least_featured_chart.setAnimationDuration(update_rate)
-        self.at_least_standard_chart.setAnimationDuration(update_rate)
-        self.at_least_combined_chart.setAnimationDuration(update_rate)
+        self._featured_chart.setAnimationDuration(update_rate)
+        self._standard_chart.setAnimationDuration(update_rate)
+        self._combined_chart.setAnimationDuration(update_rate)
 
         # Disable the parameters while simulating
         self.pulls.setEnabled(False)
@@ -657,13 +311,10 @@ class SimulationWindow(QMainWindow):
             seed=seed,
         )
 
-        # Record the start time
-        self.sim_start_time = timer()
-
         self.info_box.setText(TEXT.SIMULATION_RUNNING)
 
         # Start the simulation thread (no sleep, runs at max speed)
-        self.sim_thread = SimulationThread(self.model, pulls)
+        self.sim_thread = SimulationThread(self.model, pulls, sim_length)
         self.sim_thread.run()
 
         # Start the UI update timer
@@ -672,19 +323,15 @@ class SimulationWindow(QMainWindow):
 
     def stop_simulation_thread(self):
 
-        # Stop the UI update timer
+        sim_duration = self.sim_result.sim_duration.total_seconds()
+        self.display_elapsed_time(sim_duration)
+
         self.update_timer.stop()
-
-        # Record the end time
-        self.sim_end_time = timer()
-
-        self.display_elapsed_time(self.sim_end_time - self.sim_start_time)
 
         # Stop the simulation thread if it's running
         if self.sim_thread and self.sim_thread.is_running():
             self.sim_thread.stop()
 
-        # Enable the run and reset buttons, disable the stop button
         self.reset_button.setEnabled(True)
         self.run_button.setEnabled(True)
         self.stop_button.setEnabled(False)
@@ -703,13 +350,6 @@ class SimulationWindow(QMainWindow):
 
     def reset_simulation(self):
 
-        # Stop any running simulation first
-        if self.update_timer.isActive():
-            self.update_timer.stop()
-
-        if self.sim_thread and self.sim_thread.is_running():
-            self.sim_thread.stop()
-
         # Reset progress bar to initial state
         self.progress_bar.setValue(0)
         sim_length = self.sim_length.value()
@@ -727,327 +367,59 @@ class SimulationWindow(QMainWindow):
         # Reset info box
         self.info_box.setText(TEXT.BLANK)
 
-        # Reset the model and charts
-        self.model = None
-        self.featured_rolls.clear()
-        self.standard_rolls.clear()
-        self.total_rolls.clear()
-
         # Reset bar sets and axes
-        self.exact_featured_bar_set.remove(0, self.exact_featured_bar_set.count())
-        self.exact_featured_axis_x.clear()
-        self.exact_featured_axis_x.append([TEXT.BLANK])
-        self.exact_standard_bar_set.remove(0, self.exact_standard_bar_set.count())
-        self.exact_standard_axis_x.clear()
-        self.exact_standard_axis_x.append([TEXT.BLANK])
-        self.exact_combined_bar_set.remove(0, self.exact_combined_bar_set.count())
-        self.exact_combined_axis_x.clear()
-        self.exact_combined_axis_x.append([TEXT.BLANK])
-
-        # Reset At Most charts
-        self.at_most_featured_bar_set.remove(0, self.at_most_featured_bar_set.count())
-        self.at_most_featured_axis_x.clear()
-        self.at_most_featured_axis_x.append([TEXT.BLANK])
-        self.at_most_standard_bar_set.remove(0, self.at_most_standard_bar_set.count())
-        self.at_most_standard_axis_x.clear()
-        self.at_most_standard_axis_x.append([TEXT.BLANK])
-        self.at_most_combined_bar_set.remove(0, self.at_most_combined_bar_set.count())
-        self.at_most_combined_axis_x.clear()
-        self.at_most_combined_axis_x.append([TEXT.BLANK])
-
-        # Reset At Least charts
-        self.at_least_featured_bar_set.remove(0, self.at_least_featured_bar_set.count())
-        self.at_least_featured_axis_x.clear()
-        self.at_least_featured_axis_x.append([TEXT.BLANK])
-        self.at_least_standard_bar_set.remove(0, self.at_least_standard_bar_set.count())
-        self.at_least_standard_axis_x.clear()
-        self.at_least_standard_axis_x.append([TEXT.BLANK])
-        self.at_least_combined_bar_set.remove(0, self.at_least_combined_bar_set.count())
-        self.at_least_combined_axis_x.clear()
-        self.at_least_combined_axis_x.append([TEXT.BLANK])
+        self._featured_chart.clear()
+        self._standard_chart.clear()
+        self._combined_chart.clear()
 
         # Reset joint table
         self.joint_table.clear()
         self.joint_table.setRowCount(0)
         self.joint_table.setColumnCount(0)
 
-        # Force chart redraw
-        self.exact_featured_chart_view.repaint()
-        self.exact_standard_chart_view.repaint()
-        self.exact_combined_chart_view.repaint()
-        self.at_most_featured_chart_view.repaint()
-        self.at_most_standard_chart_view.repaint()
-        self.at_most_combined_chart_view.repaint()
-        self.at_least_featured_chart_view.repaint()
-        self.at_least_standard_chart_view.repaint()
-        self.at_least_combined_chart_view.repaint()
-
     def update_ui_from_simulation(self):
-        """Called by timer to update UI with latest simulation results"""
-
-        if not self.sim_thread or not self.sim_thread.is_running():
-            return
 
         # Get current results from simulation thread
-        simulation_result = self.sim_thread.get_current_results()
-        featured_rolls = simulation_result.featured_rolls
-        standard_rolls = simulation_result.standard_rolls
-        total_rolls = simulation_result.total_rolls
-        joint_rolls = simulation_result.joint_rolls
-        simulation_count = simulation_result.simulation_count
+        self.sim_result = self.sim_thread.get_current_results()
 
         # Update progress bar
-        self.progress_bar.setValue(simulation_count)
+        self.progress_bar.setValue(self.sim_result.simulation_count)
 
         # Check if simulation is complete
-        if simulation_count >= self.sim_length.value():
+        if self.sim_result.simulation_count >= self.sim_length.value():
             self.stop_simulation_thread()
-            # Ensure progress bar is full
-            self.progress_bar.setValue(self.sim_length.value())
 
-        # Update local copies
-        self.featured_rolls = featured_rolls
-        self.standard_rolls = standard_rolls
-        self.total_rolls = total_rolls
-        self.joint_rolls = joint_rolls
-
-        # Update charts
         self.update_charts()
-        # Update joint probability table
         self.update_joint_table()
 
     def update_charts(self):
 
-        # Update Featured Chart (Exact)
+        if not self.sim_result:
+            return
 
-        total_simulations = sum(self.featured_rolls.values())
-        min_key = min(self.featured_rolls.keys())
-        max_key = max(self.featured_rolls.keys())
-        featured_keys = list(range(min_key, max_key + 1))
-        featured_x_values = [str(key) for key in featured_keys]
-        featured_y_values = [
-            round((self.featured_rolls.get(key, 0) / total_simulations) * 100, 2)
-            for key in featured_keys
-        ]
+        total = self.sim_result.simulation_count
+        featured_rolls = self.sim_result.featured_rolls
+        standard_rolls = self.sim_result.standard_rolls
+        total_rolls = self.sim_result.total_rolls
 
-        changed = False
+        mode = TEXT.CHART_VIEW_OPTIONS[self.chart_view_dropdown.currentIndex()]
 
-        while self.exact_featured_bar_set.count() < len(featured_y_values):
-            self.exact_featured_bar_set.append(0)
-            changed = True
+        # Featured Chart
+        featured_converted = convert_dict(featured_rolls, mode)
+        self._featured_chart.update_data(norm_dict(featured_converted, total=total))
 
-        for i, y in enumerate(featured_y_values):
-            self.exact_featured_bar_set.replace(i, y)
+        # Standard Chart
+        standard_converted = convert_dict(standard_rolls, mode)
+        self._standard_chart.update_data(norm_dict(standard_converted, total=total))
 
-        if changed:
-            for i, x in zip(self.exact_featured_axis_x.categories(), featured_x_values):
-                self.exact_featured_axis_x.replace(i, x)
-            for x in featured_x_values[len(self.exact_featured_axis_x.categories()):]:
-                self.exact_featured_axis_x.append(x)
-
-        # Update Standard Chart (Exact)
-
-        total_simulations = sum(self.standard_rolls.values())
-        min_key = min(self.standard_rolls.keys())
-        max_key = max(self.standard_rolls.keys())
-        standard_keys = list(range(min_key, max_key + 1))
-        standard_x_values = [str(key) for key in standard_keys]
-        standard_y_values = [
-            round((self.standard_rolls.get(key, 0) / total_simulations) * 100, 2)
-            for key in standard_keys
-        ]
-
-        changed = False
-
-        while self.exact_standard_bar_set.count() < len(standard_y_values):
-            self.exact_standard_bar_set.append(0)
-            changed = True
-
-        for i, y in enumerate(standard_y_values):
-            self.exact_standard_bar_set.replace(i, y)
-
-        if changed:
-            for i, x in zip(self.exact_standard_axis_x.categories(), standard_x_values):
-                self.exact_standard_axis_x.replace(i, x)
-            for x in standard_x_values[len(self.exact_standard_axis_x.categories()):]:
-                self.exact_standard_axis_x.append(x)
-
-        # Update Combined Chart (Exact)
-
-        total_simulations = sum(self.total_rolls.values())
-        min_key = min(self.total_rolls.keys())
-        max_key = max(self.total_rolls.keys())
-        combined_keys = list(range(min_key, max_key + 1))
-        combined_x_values = [str(key) for key in combined_keys]
-        combined_y_values = [
-            round((self.total_rolls.get(key, 0) / total_simulations) * 100, 2)
-            for key in combined_keys
-        ]
-
-        changed = False
-
-        while self.exact_combined_bar_set.count() < len(combined_y_values):
-            self.exact_combined_bar_set.append(0)
-            changed = True
-
-        for i, y in enumerate(combined_y_values):
-            self.exact_combined_bar_set.replace(i, y)
-        if changed:
-            for i, x in zip(self.exact_combined_axis_x.categories(), combined_x_values):
-                self.exact_combined_axis_x.replace(i, x)
-            for x in combined_x_values[len(self.exact_combined_axis_x.categories()):]:
-                self.exact_combined_axis_x.append(x)
-
-        # Update Featured Chart (At Most)
-
-        featured_cdf_values = []
-        cumulative_prob = 0.0
-        for key in featured_keys:
-            cumulative_prob += (self.featured_rolls.get(key, 0) / total_simulations) * 100
-            featured_cdf_values.append(round(cumulative_prob, 2))
-
-        changed = False
-        while self.at_most_featured_bar_set.count() < len(featured_cdf_values):
-            self.at_most_featured_bar_set.append(0)
-            changed = True
-
-        for i, y in enumerate(featured_cdf_values):
-            self.at_most_featured_bar_set.replace(i, y)
-
-        if changed:
-            for i, x in zip(self.at_most_featured_axis_x.categories(), featured_x_values):
-                self.at_most_featured_axis_x.replace(i, x)
-            for x in featured_x_values[len(self.at_most_featured_axis_x.categories()):]:
-                self.at_most_featured_axis_x.append(x)
-
-        # Update Standard Chart (At Most)
-
-        standard_cdf_values = []
-        cumulative_prob = 0.0
-        for key in standard_keys:
-            cumulative_prob += (self.standard_rolls.get(key, 0) / total_simulations) * 100
-            standard_cdf_values.append(round(cumulative_prob, 2))
-
-        changed = False
-        while self.at_most_standard_bar_set.count() < len(standard_cdf_values):
-            self.at_most_standard_bar_set.append(0)
-            changed = True
-
-        for i, y in enumerate(standard_cdf_values):
-            self.at_most_standard_bar_set.replace(i, y)
-
-        if changed:
-            for i, x in zip(self.at_most_standard_axis_x.categories(), standard_x_values):
-                self.at_most_standard_axis_x.replace(i, x)
-            for x in standard_x_values[len(self.at_most_standard_axis_x.categories()):]:
-                self.at_most_standard_axis_x.append(x)
-
-        # Update Combined Chart (At Most)
-
-        combined_cdf_values = []
-        cumulative_prob = 0.0
-        for key in combined_keys:
-            cumulative_prob += (self.total_rolls.get(key, 0) / total_simulations) * 100
-            combined_cdf_values.append(round(cumulative_prob, 2))
-
-        changed = False
-        while self.at_most_combined_bar_set.count() < len(combined_cdf_values):
-            self.at_most_combined_bar_set.append(0)
-            changed = True
-
-        for i, y in enumerate(combined_cdf_values):
-            self.at_most_combined_bar_set.replace(i, y)
-
-        if changed:
-            for i, x in zip(self.at_most_combined_axis_x.categories(), combined_x_values):
-                self.at_most_combined_axis_x.replace(i, x)
-            for x in combined_x_values[len(self.at_most_combined_axis_x.categories()):]:
-                self.at_most_combined_axis_x.append(x)
-
-        # Update Featured Chart (At Least)
-
-        featured_at_least_values = []
-        total_prob = 100.0
-        for i, key in enumerate(featured_keys):
-            if i > 0:
-                total_prob -= (self.featured_rolls.get(featured_keys[i-1], 0) / total_simulations) * 100
-            featured_at_least_values.append(round(total_prob, 2))
-
-        changed = False
-        while self.at_least_featured_bar_set.count() < len(featured_at_least_values):
-            self.at_least_featured_bar_set.append(0)
-            changed = True
-
-        for i, y in enumerate(featured_at_least_values):
-            self.at_least_featured_bar_set.replace(i, y)
-
-        if changed:
-            for i, x in zip(self.at_least_featured_axis_x.categories(), featured_x_values):
-                self.at_least_featured_axis_x.replace(i, x)
-            for x in featured_x_values[len(self.at_least_featured_axis_x.categories()):]:
-                self.at_least_featured_axis_x.append(x)
-
-        # Update Standard Chart (At Least)
-
-        standard_at_least_values = []
-        total_prob = 100.0
-        for i, key in enumerate(standard_keys):
-            if i > 0:
-                total_prob -= (self.standard_rolls.get(standard_keys[i-1], 0) / total_simulations) * 100
-            standard_at_least_values.append(round(total_prob, 2))
-
-        changed = False
-        while self.at_least_standard_bar_set.count() < len(standard_at_least_values):
-            self.at_least_standard_bar_set.append(0)
-            changed = True
-
-        for i, y in enumerate(standard_at_least_values):
-            self.at_least_standard_bar_set.replace(i, y)
-
-        if changed:
-            for i, x in zip(self.at_least_standard_axis_x.categories(), standard_x_values):
-                self.at_least_standard_axis_x.replace(i, x)
-            for x in standard_x_values[len(self.at_least_standard_axis_x.categories()):]:
-                self.at_least_standard_axis_x.append(x)
-
-        # Update Combined Chart (At Least)
-
-        combined_at_least_values = []
-        total_prob = 100.0
-        for i, key in enumerate(combined_keys):
-            if i > 0:
-                total_prob -= (self.total_rolls.get(combined_keys[i-1], 0) / total_simulations) * 100
-            combined_at_least_values.append(round(total_prob, 2))
-
-        changed = False
-        while self.at_least_combined_bar_set.count() < len(combined_at_least_values):
-            self.at_least_combined_bar_set.append(0)
-            changed = True
-
-        for i, y in enumerate(combined_at_least_values):
-            self.at_least_combined_bar_set.replace(i, y)
-
-        if changed:
-            for i, x in zip(self.at_least_combined_axis_x.categories(), combined_x_values):
-                self.at_least_combined_axis_x.replace(i, x)
-            for x in combined_x_values[len(self.at_least_combined_axis_x.categories()):]:
-                self.at_least_combined_axis_x.append(x)
-
-        # Force chart redraw
-        self.exact_featured_chart_view.repaint()
-        self.exact_standard_chart_view.repaint()
-        self.exact_combined_chart_view.repaint()
-        self.at_most_featured_chart_view.repaint()
-        self.at_most_standard_chart_view.repaint()
-        self.at_most_combined_chart_view.repaint()
-        self.at_least_featured_chart_view.repaint()
-        self.at_least_standard_chart_view.repaint()
-        self.at_least_combined_chart_view.repaint()
+        # Combined Chart
+        combined_converted = convert_dict(total_rolls, mode)
+        self._combined_chart.update_data(norm_dict(combined_converted, total=total))
 
     def update_joint_table(self):
         """Update the joint probability table as a 2D heatmap."""
 
-        joint = self.joint_rolls
+        joint = self.sim_result.joint_rolls
         if not joint:
             self.joint_table.clear()
             self.joint_table.setRowCount(0)
@@ -1055,9 +427,9 @@ class SimulationWindow(QMainWindow):
             return
 
         # Get sorted unique values for featured and standard
-        featured_keys = list(range(min(self.featured_rolls.keys()), max(self.featured_rolls.keys()) + 1))
-        standard_keys = list(range(min(self.standard_rolls.keys()), max(self.standard_rolls.keys()) + 1))
-        total = sum(joint.values())
+        featured_keys = self.sim_result.featured_rolls.keys()
+        standard_keys = self.sim_result.standard_rolls.keys()
+        total = self.sim_result.simulation_count
 
         self.joint_table.setRowCount(len(featured_keys))
         self.joint_table.setColumnCount(len(standard_keys))
@@ -1068,11 +440,11 @@ class SimulationWindow(QMainWindow):
         for i, f in enumerate(featured_keys):
             for j, s in enumerate(standard_keys):
                 prob = (joint.get((f, s), 0) / total * 100) if total > 0 else 0
-                text = f"{prob:>8.4f}%" if prob > 0 else ""
+                text = f"{prob:>8.4f}" if prob > 0 else ""
                 item = QTableWidgetItem(text)
                 # Make the text larger
                 font = item.font()
-                font.setPointSize(11)
+                font.setPointSize(12)
                 item.setFont(font)
                 # Make item unselectable
                 item.setFlags(Qt.ItemFlag.ItemIsEnabled)
