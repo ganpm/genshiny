@@ -1,7 +1,7 @@
 # flake8: noqa: PYI021
 
 from enum import Enum
-from typing import Tuple
+from datetime import timedelta
 
 
 class PullResult(Enum):
@@ -104,7 +104,7 @@ class GenshinImpactGachaModel:
     def batch_pull_count(
             self,
             pulls: int
-            ) -> Tuple[int, int]:
+            ) -> tuple[int, int]:
         """
         Perform multiple pulls and count the results.
         
@@ -125,6 +125,9 @@ class SimulationResult:
     total_rolls: dict[int, int]
     joint_rolls: dict[tuple[int, int], int]
     simulation_count: int
+    ftd_range: tuple[int, int]
+    std_range: tuple[int, int]
+    sim_duration: timedelta
 
     def __init__(
             self,
@@ -132,7 +135,10 @@ class SimulationResult:
             standard_rolls: dict[int, int],
             total_rolls: dict[int, int],
             joint_rolls: dict[tuple[int, int], int],
-            simulation_count: int
+            simulation_count: int,
+            ftd_range: tuple[int, int],
+            std_range: tuple[int, int],
+            sim_duration: timedelta,
             ) -> None:
         ...
 
@@ -143,6 +149,7 @@ class SimulationThread:
             self,
             model: GenshinImpactGachaModel,
             pulls: int,
+            sim_length: int,
             ) -> None:
         ...
 
