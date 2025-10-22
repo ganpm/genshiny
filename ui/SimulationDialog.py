@@ -229,7 +229,7 @@ class SimulationWindow(QMainWindow):
 
         self._featured_chart = BarGraph(
             title=TEXT.FEATURED_5_STAR,
-            x_label=TEXT.NUMBER_OF_5_STAR,
+            x_label=TEXT.FEATURED_5_STAR,
             y_label=TEXT.PROBABILITY,
             geometry=CONFIG.CHART.GEOMETRY,
         )
