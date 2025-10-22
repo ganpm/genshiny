@@ -1,6 +1,6 @@
 # Genshiny
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
-[![Rust](https://img.shields.io/badge/rust-1.78%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-1.82%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](LICENSE)
 
 A desktop application for managing and analyzing your pulls in Genshin Impact.
@@ -21,7 +21,7 @@ Genshiny helps players track their gacha resources and simulate pull outcomes us
 ## 🛠️ Prerequisites
 
 - **Python 3.12.0** or later
-- **Rust 1.78.0** or later
+- **Rust 1.82.0** or later
 
 ## 📦 Installation
 
