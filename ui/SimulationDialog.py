@@ -8,14 +8,9 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QTabWidget,
     QWidget,
-    QTableWidget,
-    QTableWidgetItem,
-    QHeaderView,
-    QFrame,
 )
 from PyQt6.QtGui import (
     QIcon,
-    QColor,
 )
 from PyQt6.QtCore import (
     Qt,
@@ -25,7 +20,12 @@ from PyQt6.QtCore import (
 from core.config import CONFIG
 from core.assets import ASSETS
 from core.text import TEXT
-from core.utils import norm_dict, convert_dict
+from core.utils import (
+    norm_dict,
+    convert_dict,
+    array_2d_from_dict,
+    joint_pmf_variant,
+)
 from gachamodel import (
     GenshinImpactGachaModel,
     CapturingRadianceModel,
@@ -34,7 +34,6 @@ from gachamodel import (
 )
 from .utils import (
     set_titlebar_darkmode,
-    cmap,
     left_aligned_layout,
 )
 
@@ -43,6 +42,9 @@ from .Dropdown import Dropdown
 from .BooleanComboBox import BooleanComboBox
 from .FrameBox import FrameBox
 from .BarGraph import BarGraph
+from .Heatmap import Heatmap
+from .HorizontalDivider import HorizontalDivider
+from .VerticalDivider import VerticalDivider
 
 
 class SimulationWindow(QMainWindow):
@@ -220,10 +222,7 @@ class SimulationWindow(QMainWindow):
         self.chart_view_dropdown.currentIndexChanged.connect(self.update_charts)
         marginal_pmf_layout.addLayout(left_aligned_layout(TEXT.CHART_VIEW, self.chart_view_dropdown))
 
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setFrameShadow(QFrame.Shadow.Sunken)
-        marginal_pmf_layout.addWidget(line)
+        marginal_pmf_layout.addWidget(HorizontalDivider())
 
         # Featured Chart
 
@@ -259,12 +258,25 @@ class SimulationWindow(QMainWindow):
 
         # Joint Probability Tab
         joint_layout = QVBoxLayout()
-        self.joint_table = QTableWidget()
-        self.joint_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.joint_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.joint_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
+        self.joint_view_standard_options = Dropdown(options=TEXT.JOINT_VIEW_STANDARD_OPTIONS, width=100)
+        self.joint_view_standard_options.currentIndexChanged.connect(self.update_joint_table)
+        self.joint_view_featured_options = Dropdown(options=TEXT.JOINT_VIEW_FEATURED_OPTIONS, width=100)
+        self.joint_view_featured_options.currentIndexChanged.connect(self.update_joint_table)
+
+        top_options = left_aligned_layout(
+            TEXT.JOINT_VIEW_STANDARD, self.joint_view_standard_options,
+            VerticalDivider(),
+            TEXT.JOINT_VIEW_FEATURED, self.joint_view_featured_options,
+        )
+        top_options.setSpacing(20)
+        joint_layout.addLayout(top_options)
+
+        joint_layout.addWidget(HorizontalDivider())
+
+        self.joint_table = Heatmap()
         joint_layout.addWidget(self.joint_table)
+
         joint_pmf_tab.setLayout(joint_layout)
 
         # Add tab widget to main layout
@@ -420,10 +432,8 @@ class SimulationWindow(QMainWindow):
         """Update the joint probability table as a 2D heatmap."""
 
         joint = self.sim_result.joint_rolls
+
         if not joint:
-            self.joint_table.clear()
-            self.joint_table.setRowCount(0)
-            self.joint_table.setColumnCount(0)
             return
 
         # Get sorted unique values for featured and standard
@@ -431,25 +441,18 @@ class SimulationWindow(QMainWindow):
         standard_keys = self.sim_result.standard_rolls.keys()
         total = self.sim_result.simulation_count
 
-        self.joint_table.setRowCount(len(featured_keys))
-        self.joint_table.setColumnCount(len(standard_keys))
-        self.joint_table.setHorizontalHeaderLabels([str(s) for s in standard_keys])
-        self.joint_table.setVerticalHeaderLabels([str(f) for f in featured_keys])
+        opx = TEXT.JOINT_VIEW_STANDARD_OPTIONS[self.joint_view_standard_options.currentIndex()]
+        opy = TEXT.JOINT_VIEW_FEATURED_OPTIONS[self.joint_view_featured_options.currentIndex()]
 
-        # Fill table with probabilities
-        for i, f in enumerate(featured_keys):
-            for j, s in enumerate(standard_keys):
-                prob = (joint.get((f, s), 0) / total * 100) if total > 0 else 0
-                text = f"{prob:>8.4f}" if prob > 0 else ""
-                item = QTableWidgetItem(text)
-                # Make the text larger
-                font = item.font()
-                font.setPointSize(12)
-                item.setFont(font)
-                # Make item unselectable
-                item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                item.setTextAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-                # Color code based on probability
-                color = QColor(*cmap(prob / 100))
-                item.setBackground(color)
-                self.joint_table.setItem(i, j, item)
+        joint_pmf = array_2d_from_dict(
+            data=joint,
+            x_labels=standard_keys,
+            y_labels=featured_keys,
+        )
+        joint_pmf = joint_pmf_variant(joint_pmf, opx, opy)
+
+        self.joint_table.set_heatmap_data(
+            x_labels=standard_keys,
+            y_labels=featured_keys,
+            data=joint_pmf / total,
+        )
