@@ -1,5 +1,4 @@
 import sys
-import math
 
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -29,71 +28,58 @@ def set_titlebar_darkmode(widget: QWidget):
 
 
 def left_aligned_layout(
-        *widgets: QWidget | QLayout
+        *items: QWidget | QLayout | str
         ) -> QHBoxLayout:
 
     box = QHBoxLayout()
     box.setSpacing(0)
-    for widget in widgets:
-        if isinstance(widget, QLayout):
-            box.addLayout(widget)
-        elif isinstance(widget, str):
-            # If string, add as a label
-            box.addWidget(QLabel(widget))
+    for item in items:
+        if isinstance(item, QLayout):
+            box.addLayout(item)
+        elif isinstance(item, str):
+            box.addWidget(QLabel(item))
+        elif isinstance(item, QWidget):
+            box.addWidget(item)
         else:
-            try:
-                box.addWidget(widget)
-            except Exception as e:
-                print(f"Failed to add widget: {e}")
-                continue
+            raise ValueError(f"Failed to add item type: {type(item)}")
     box.addStretch(1)
     return box
 
 
 def right_aligned_layout(
-        *widgets: QWidget | QLayout
+        *items: QWidget | QLayout | str
         ) -> QHBoxLayout:
 
     box = QHBoxLayout()
     box.setSpacing(0)
     box.addStretch(1)
-    for widget in widgets:
-        if isinstance(widget, QLayout):
-            box.addLayout(widget)
+    for item in items:
+        if isinstance(item, QLayout):
+            box.addLayout(item)
+        elif isinstance(item, str):
+            box.addWidget(QLabel(item))
+        elif isinstance(item, QWidget):
+            box.addWidget(item)
         else:
-            try:
-                box.addWidget(widget)
-            except Exception as e:
-                print(f"Failed to add widget: {e}")
-                continue
+            raise ValueError(f"Failed to add item type: {type(item)}")
     return box
 
 
-def cmap(
-        p: float,
-        normalization_method: str = 'quadratic',
-        cutoff: float = 0.0,
-        cutoff_intensity: int = 30,
-        min_intensity: int = 40,
-        max_intensity: int = 215,
-        ) -> tuple[int, int, int]:
-    """Color map from probability to color (RGB tuple). Used in visualizing the probability values in the joint distribution."""
+def center_aligned_layout(
+        *items: QWidget | QLayout | str
+        ) -> QHBoxLayout:
 
-    if p <= cutoff:
-        k = cutoff_intensity
-        return (0, k, k)
-
-    match normalization_method:
-        case 'linear':
-            x = p
-        case 'sqrt':
-            x = p ** 0.5
-        case 'quadratic':
-            x = (1 - (p-1) ** 2) ** 0.5
-        case 'log':
-            x = math.log10(9 * p + 1)
-        case _:
-            raise ValueError(f"Unknown norm type: {normalization_method}")
-    k = int(min_intensity + (max_intensity - min_intensity) * x)
-
-    return (0, k, k)
+    box = QHBoxLayout()
+    box.setSpacing(0)
+    box.addStretch(1)
+    for item in items:
+        if isinstance(item, QLayout):
+            box.addLayout(item)
+        elif isinstance(item, str):
+            box.addWidget(QLabel(item))
+        elif isinstance(item, QWidget):
+            box.addWidget(item)
+        else:
+            raise ValueError(f"Failed to add item type: {type(item)}")
+    box.addStretch(1)
+    return box
