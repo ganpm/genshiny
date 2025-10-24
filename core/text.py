@@ -91,3 +91,9 @@ class TEXT:
 
     SIMULATION_RUNNING = "Simulation running . . ."
     SIMULATION_COMPLETED = "Simulation completed in {}"
+
+    JOINT_VIEW_STANDARD = "View Mode: Standard 5 Stars:"
+    JOINT_VIEW_FEATURED = "View Mode: Featured 5 Stars:"
+
+    JOINT_VIEW_STANDARD_OPTIONS = [EQ, GT, GE, LT, LE]
+    JOINT_VIEW_FEATURED_OPTIONS = [EQ, GT, GE, LT, LE]
