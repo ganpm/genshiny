@@ -26,4 +26,4 @@ class CONFIG:
 
     SIMULATION = Box(w=1080, h=900)
 
-    CHART = Box(x=70, y=20, w=640, h=170)
+    CHART = Box(x=70, y=30, w=640, h=170)
