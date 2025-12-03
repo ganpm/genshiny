@@ -198,6 +198,8 @@ struct GenshinImpactGachaModel {
     g: bool,
     #[pyo3(get, set)]
     cr_model: CapturingRadianceModel,
+    #[pyo3(get, set)]
+    seed: u64,
     #[pyo3(get)]
     rate5: f64,
     #[pyo3(get)]
@@ -229,14 +231,13 @@ impl GenshinImpactGachaModel {
         seed: u64
     ) -> Self {
 
-        fastrand::seed(seed);
-
         let rate5 = 0.006;
         let rate4 = 0.051;
 
         Self {
             g,
             cr_model,
+            seed,
             rate5,
             rate4,
             rateup5: 10.0 * rate5,
@@ -464,6 +465,7 @@ impl SimulationThread {
             let running = Arc::clone(&self.running);
             let sim_result = Arc::clone(&self.simulation_result);
             let mut model = self.model.clone();
+            let seed = self.model.seed;
             let pulls = self.pulls;
             let sim_length = self.sim_length;
 
@@ -472,6 +474,7 @@ impl SimulationThread {
                 let mut sim_count = 0;
 
                 let start_time = Instant::now();
+                fastrand::seed(seed);
 
                 while *running.lock().unwrap() && sim_count < sim_length {
 

@@ -62,6 +62,7 @@ class GenshinImpactGachaModel:
     ### Args:
     - `g` - Whether the next 5-star is guaranteed to be featured
     - `cr_model` - Capturing Radiance model to use
+    - `seed` - Seed for the random number generator
     - `rate5` - Base rate for 5-star before the soft pity threshold for 5-stars
     - `rate4` - Base rate for 4-star before the soft pity threshold for 4-stars
     - `rateup5` - Rate increase after the soft pity threshold for 5-stars
@@ -74,6 +75,7 @@ class GenshinImpactGachaModel:
 
     g: bool
     cr_model: CapturingRadianceModel
+    seed: int
     rate5: float
     rate4: float
     rateup5: float
