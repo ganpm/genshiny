@@ -14,8 +14,8 @@ class CONFIG:
     ASSETS_PATH = INSIDE_PATH / "assets"
 
     OUTSIDE_PATH = Path(sys.argv[0]).parent
-    SAVE_PATH = OUTSIDE_PATH / "save"
-    LAST_SAVE_FILE = SAVE_PATH / "last_save.json"
+    SAVE_PATH = OUTSIDE_PATH / "genshiny_save"
+    LAST_SAVE_FILE = SAVE_PATH / "genshiny_last_save.json"
 
     FONT_FAMILY = "Segoe UI"
     FONT_SIZE = 12
