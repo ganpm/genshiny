@@ -10,25 +10,16 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import (
     Qt,
-    QRectF,
 )
 from PyQt6.QtGui import (
     QIcon,
-    QPainter,
-)
-from PyQt6.QtCharts import (
-    QChart,
-    QChartView,
-    QBarSeries,
-    QBarSet,
-    QValueAxis,
-    QBarCategoryAxis,
 )
 
 from .CountSpinbox import CountSpinbox
 from .ErrorDialog import ErrorDialog
 from .SimulationDialog import SimulationWindow
 from .FrameBox import FrameBox
+from .BarGraph import BarGraph
 from .utils import (
     set_titlebar_darkmode,
     left_aligned_layout,
@@ -195,55 +186,23 @@ class MainWindow(QMainWindow):
         self.total_fates.setFont(total_fates_font)
         groupbox_layout.addLayout(container, 4, 1)
 
-        self.chart = QChart()
-
-        self.chart_view = QChartView(self.chart)
-        self.chart_view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.chart_view.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.chart_view)
-
-        # from 70 to 90
+        # Pity Chart
         self.pity_breakpoints = list(range(72, 91, 3))
         self.pity_count_per_breakpoint = [0 for _ in self.pity_breakpoints]
 
-        chart = QChart()
-        chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-
-        self.bar_set = QBarSet(TEXT.PITY_COUNT)
-        self.bar_set.append(self.pity_count_per_breakpoint)
-
-        bar_series = QBarSeries()
-        bar_series.append(self.bar_set)
-
-        chart.addSeries(bar_series)
-
-        axis_x = QBarCategoryAxis()
-        axis_x.append([str(i) for i in self.pity_breakpoints])
-        axis_x.setTitleText(TEXT.PITY_BREAKPOINTS)
-        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
-        bar_series.attachAxis(axis_x)
-
-        self.axis_y = QValueAxis()
         max_int_ceil = int(max(self.pity_count_per_breakpoint)) + 2
         min_int_floor = max(int(min(self.pity_count_per_breakpoint)) - 1, 0)
-        self.axis_y.setRange(min_int_floor, max_int_ceil)
-        self.axis_y.setTickCount(max_int_ceil - min_int_floor + 1)
-        self.axis_y.setTitleText(TEXT.PITY_COUNT)
 
-        chart.addAxis(self.axis_y, Qt.AlignmentFlag.AlignLeft)
-        bar_series.attachAxis(self.axis_y)
-
-        # Hide legend
-        chart.legend().setVisible(False)
-        chart.setPlotArea(QRectF(60, 10, 300, 190))
-
-        bar_series.setLabelsVisible(True)
-        bar_series.setLabelsFormat("@value")
-        bar_series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        self.chart_view.setChart(chart)
-        self.chart_view.show()
+        self.bar_graph = BarGraph(
+            geometry=(60, 20, 300, 190),
+            title=TEXT.BLANK,
+            x_label=TEXT.PITY_BREAKPOINTS,
+            y_label=TEXT.PITY_COUNT,
+            x_values=[str(bp) for bp in self.pity_breakpoints],
+            y_range=(min_int_floor, max_int_ceil),
+            y_tick_count=max_int_ceil - min_int_floor + 1,
+        )
+        layout.addWidget(self.bar_graph)
 
         layout.addStretch(1)
 
@@ -391,16 +350,20 @@ class MainWindow(QMainWindow):
         self.total_pulls = total_fates
         self.total_fates.setText(str(total_fates))
 
-        # Generate the pity chart
+        # Update the pity chart
         self.pity_count_per_breakpoint = [round(total_fates / i, 2) for i in self.pity_breakpoints]
 
-        for i, value in enumerate(self.pity_count_per_breakpoint):
-            self.bar_set.replace(i, value)
+        new_data = {
+            bp: round(total_fates / bp, 2)
+            for bp in self.pity_breakpoints
+        }
+        self.bar_graph.update_data(new_data)
 
+        # Update y-axis range to fit the new data
         max_int_ceil = int(max(self.pity_count_per_breakpoint)) + 2
         min_int_floor = max(int(min(self.pity_count_per_breakpoint)) - 1, 0)
-        self.axis_y.setRange(min_int_floor, max_int_ceil)
-        self.axis_y.setTickCount(max_int_ceil - min_int_floor + 1)
+        self.bar_graph._y_axis.setRange(min_int_floor, max_int_ceil)
+        self.bar_graph._y_axis.setTickCount(max_int_ceil - min_int_floor + 1)
 
         self.save_to_last_save()
 
