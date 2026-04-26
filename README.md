@@ -18,12 +18,32 @@ Genshiny helps players track their gacha resources and simulate pull outcomes us
 - **Gacha Simulation**: Simulate pulls using an approximate gacha model including the effect of Capturing Radiance
 - **Dark Theme**: Modern UI with dark theme support
 
-## 🛠️ Prerequisites
+## 📷 Screenshots
+
+<p align="center">
+    <img src="docs/images/image01.png" height="480" />
+</p>
+<p align="center">
+    <img src="docs/images/image02.png" height="480" />
+</p>
+<p align="center">
+    <img src="docs/images/image03.png" height="480" />
+</p>
+
+## 📦 Installation
+
+Download the latest release [here](https://github.com/ganpm/genshiny/releases).
+
+You can also clone the repo and compile the simulation model yourself, and then build the standalone executable.
+
+## 🛠️ Build
+
+### Prerequisites
 
 - **Python 3.12.0** or later
 - **Rust 1.82.0** or later
 
-## 📦 Installation
+Follow the steps below to manually build the program as a standalone file on Windows.
 
 1. **Clone the repository**
 
@@ -34,19 +54,13 @@ Genshiny helps players track their gacha resources and simulate pull outcomes us
 
 2. **Create and activate virtual environment**
 
-    Windows
     ```sh
     python -m venv .venv
     .\.venv\Scripts\Activate.ps1
     ```
 
-    Linux
-    ```sh
-    python -m venv .venv
-    source .venv/bin/activate
-    ```
-
 3. **Install dependencies**
+   
     ```sh
     pip install -r requirements.txt
     pip install pyqtdarktheme==2.1.0 --ignore-requires-python
@@ -56,36 +70,35 @@ Genshiny helps players track their gacha resources and simulate pull outcomes us
     >
     > See [PyQtDarkTheme GitHub Issue #252](https://github.com/5yutan5/PyQtDarkTheme/issues/252) for details.
 
-## 🔧 Building the Model
+4. **Build the simulation model library**
 
-The simulation model needs to be compiled first using the following commands:
+    Compile the simulation model library using `maturin` with the `--release` flag to enable optimization.
 
-**Development build:**
-```sh
-maturin develop
-```
+    ```sh
+    maturin develop --release
+    ```
 
-**Optimized release build (recommended):**
-```sh
-maturin develop --release
-```
+    At this point you should be able to run it without building the executable using the following command:
 
-## 🚀 Usage
+    ```sh
+    python Genshiny.py
+    ```
 
-Run the application:
-```sh
-python Genshiny.py
-```
+5. **Build the standalone executable**
 
-## 🔨 Building the Executable
+    Build the standalone executable using `nuitka`.
 
-To create the standalone executable:
+    ```sh
+    python -m nuitka Genshiny.py
+    ```
+    
+    The build configuration is specified in the `Genshiny.py` file.
 
-```sh
-python -m nuitka Genshiny.py
-```
+6. **Run the program**
 
-The build configuration is already specified in the `Genshiny.py` file.
+    The `Genshiny.exe` executable file should appear in the same folder.
+
+    > **Note:** Creates a folder named `genshiny_save` on first launch in the same folder where the executable is.
 
 ## 📚 Technical References
 
